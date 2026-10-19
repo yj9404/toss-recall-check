@@ -59,6 +59,10 @@ class Detail(Summary):
     barcode: str | None
     images: list[str]
     source_url: str | None
+    # 소비자24 항목에만 값이 있다.
+    model_text: str | None
+    consumer_tips: str | None
+    recall_period_text: str | None
     last_seen_at: str
 
 
@@ -92,7 +96,7 @@ def _summary(item: Item, settings: Settings) -> Summary:
         reason=item.reason,
         grade=item.grade,
         registered_at=_iso(item.registered_at),
-        source_label=source_label(item.source),
+        source_label=item.source_label or source_label(item.source),
         thumbnail=links[0] if links else None,
     )
 
@@ -108,6 +112,9 @@ def _detail(item: Item, settings: Settings) -> Detail:
         barcode=item.barcode,
         images=_image_links(item, settings.image_hosts),
         source_url=item.source_url,
+        model_text=item.model_text,
+        consumer_tips=item.consumer_tips,
+        recall_period_text=item.recall_period_text,
         last_seen_at=_iso(item.last_seen_at),
     )
 
@@ -209,9 +216,7 @@ async def healthz(request: Request) -> dict:
     }
 
 
-def _require_admin(
-    request: Request, x_admin_token: Annotated[str | None, Header()] = None
-) -> None:
+def _require_admin(request: Request, x_admin_token: Annotated[str | None, Header()] = None) -> None:
     expected = _settings(request).admin_token.get_secret_value()
     if (
         not expected
@@ -238,8 +243,6 @@ def record_source_status(app, results: list[SourceResult]) -> None:
     """수집 결과를 메모리에 반영한다. /healthz가 이 값을 그대로 돌려준다."""
     now = datetime.now(KST)
     for r in results:
-        if r.status == "not_implemented":
-            continue
         state = app.state.source_status.setdefault(r.source, SourceStatus())
         if r.status == "ok":
             state.last_success_at = now

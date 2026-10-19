@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?> 
+
+<ns2:selectCntntsForOpenAPIResponse xmlns:ns2="http://www.consumer.go.kr/openapi">
+
+
+<channel>
+<return>
+
+
+<allCnt>448</allCnt>
+<code>00</code>
+<codeMsg>정상</codeMsg>
+
+<content>
+<recallSn>RCLL_000000000609110</recallSn>
+<cntntsId>0301</cntntsId>
+<productNm><![CDATA[[현대] 아반떼 등 2차종 - 운전석 에어백 인플레이터 관련 리콜]]></productNm>
+<makr><![CDATA[현대자동차(주)]]></makr>
+<bsnmNm><![CDATA[현대자동차(주)]]></bsnmNm>
+<mnfcturPd><![CDATA[20100623~20100814]]></mnfcturPd>
+<modlNmInfo><![CDATA[아반떼 (HD), i30 (FD)]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[<p>운전석 에어백 모듈 내 인플레이터 교환 </p>]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[<p>일부 차량에서 운전석 에어백 전개 시 인플레이터의 과도한 내부 압력 증가로 인해 인플레이터 용기가 파손될 수 있는 가능성이 확인됨에 따른리콜 </p><p><br></p><p><대상차량별 생산일자></p><p>아반떼 (HD): 2010.06.23~2010.07.30 (문제 부품 장착 차량 한정)</p><p>i30 (FD): 2010.06.23~2010.08.14 (문제 부품 장착 차량 한정)</p>]]></shrtcomCn>
+<recallSe><![CDATA[자발적리콜]]></recallSe>
+<recallPublictBgnde><![CDATA[20261014]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[20280414]]></recallPublictEndde>
+<injryCauseResult><![CDATA[]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[20261014]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[현대자동차 대표번호 080-600-6000]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국토교통부]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.molit.go.kr/portal.do]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국토교통부]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+	
+		<recallImgUrls><![CDATA[]]></recallImgUrls>
+	
+
+</content>
+
+<content>
+<recallSn>RCLL_000000000609109</recallSn>
+<cntntsId>0301</cntntsId>
+<productNm><![CDATA[[비엠더블유] MINI Aceman E 등 3차종 - 리어뷰 미러 관련 리콜]]></productNm>
+<makr><![CDATA[비엠더블유코리아(주)]]></makr>
+<bsnmNm><![CDATA[비엠더블유코리아(주)]]></bsnmNm>
+<mnfcturPd><![CDATA[20260407~20260411]]></mnfcturPd>
+<modlNmInfo><![CDATA[MINI Aceman E, MINI Aceman SE, MINI Cooper SE, MINI John Cooper Works Aceman E,]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[<p>정상 제작된 실내 후방거울 장착부가 포함된 앞유리로 교체 </p>]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[<p>실내 후방 거울(리어뮤 미러)의 장착 브라켓에 접착제가 충분히 도포되지 않아 실내 후방 거울이 앞유리에서 부분적으로 또는 완전히 분리될 수 있으며, 이로 인해 실내 후방 거울이 분리될 경우 주행 중 후방 시야 확보에 영향을 줄 수 있으며, 사고 발생 시 탑승자 부상 위험이 증가할 수 있음이 확인됨에 따른 리콜 </p><p><br></p><p><대상차량별 생산일자></p><p>MINI Aceman E: 2026.04.08~2026.04.11</p><p>MINI Aceman SE: 2026.03.25~2026.04.11<br></p><p>MINI Cooper SE: 2026.03.24~2026.04.09</p><p>MINI John Cooper Works Aceman E: 2026.04.11<br></p>]]></shrtcomCn>
+<recallSe><![CDATA[자발적리콜]]></recallSe>
+<recallPublictBgnde><![CDATA[20261016]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[20280416]]></recallPublictEndde>
+<injryCauseResult><![CDATA[]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[20261016]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[비엠더블유 대표번호 080-269-5181]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국토교통부]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.molit.go.kr/portal.do]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국토교통부]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+	
+		<recallImgUrls><![CDATA[]]></recallImgUrls>
+	
+
+</content>
+
+<content>
+<recallSn>RCLL_000000000609106</recallSn>
+<cntntsId>0301</cntntsId>
+<productNm><![CDATA[[벤츠] A 220 - 도어 마이크로 스위치 관련 리콜]]></productNm>
+<makr><![CDATA[메르세데스벤츠코리아(주)]]></makr>
+<bsnmNm><![CDATA[메르세데스벤츠코리아(주)]]></bsnmNm>
+<mnfcturPd><![CDATA[20200203~20200203]]></mnfcturPd>
+<modlNmInfo><![CDATA[A 220]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[<p>도어 잠금장치 교체 </p>]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[<p>공급업체의 개발 공정 편차로 인해 특정 기후 조건에서 마이크로 스위치의 밀봉재가 수분 흡수에 취약해질 수 있으며, 이런 경우 시간이 지나면서 수분이 흡수되고 마이크로 스위치에 부식이 발생하면서 도어가 열린 상태를 차량이 감지하지 못할 수 있음. 다만, 도어 잠금장치 자체의 작동에는 영향을 주지 않음. 운전석 도어의 마이크로 스위치가 고장나면, 운전석 도어 열림에 연결된 주차 브레이크 또는 짜동 P단 기능이 작동하지 않을 수 있고, 이로 인해 차량이 굴러가는 것을 방지하지 못하여 충돌 위험이 증가할 수 있음이 확인됨에 따른 리콜 </p>]]></shrtcomCn>
+<recallSe><![CDATA[자발적리콜]]></recallSe>
+<recallPublictBgnde><![CDATA[20261016]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[20280416]]></recallPublictEndde>
+<injryCauseResult><![CDATA[]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[20261016]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[벤츠코리아 대표번호 080-001-1886]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국토교통부]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.molit.go.kr/portal.do]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국토교통부]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+	
+		<recallImgUrls><![CDATA[]]></recallImgUrls>
+	
+
+</content>
+
+</return>
+</channel>
+</ns2:selectCntntsForOpenAPIResponse>

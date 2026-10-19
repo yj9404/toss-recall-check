@@ -1,5 +1,6 @@
 """카테고리 코드와 출처 기관 라벨."""
 
+# 정의 순서가 /categories 응답(프런트엔드 탭) 순서다.
 CATEGORIES: dict[str, str] = {
     "food": "식품",
     "cosmetic": "화장품",
@@ -9,20 +10,17 @@ CATEGORIES: dict[str, str] = {
     "medical_device": "의료기기",
     "drinking_water": "먹는물",
     "vehicle": "자동차",
+    "quasi_drug": "의약외품",
+    "household_chemical": "생활화학제품",
+    "hygiene_product": "위생용품",
+    "radiation_product": "생활방사선제품",
 }
 
-# vehicle은 노출 정책 확인 전이라 기본값에서 뺀다.
-DEFAULT_ENABLED_CATEGORIES = tuple(c for c in CATEGORIES if c != "vehicle")
+DEFAULT_ENABLED_CATEGORIES = tuple(CATEGORIES)
 
-# 공정위 리콜정보에서 인스턴스화할 카테고리 (ftc_<category>).
-FTC_CATEGORIES = ("medicine", "medical_device", "drinking_water", "vehicle")
-
+# 레코드에 source_label이 없을 때 쓰는 출처별 기본 라벨.
 SOURCE_LABELS: dict[str, str] = {
     "foodsafety_i0490": "식품의약품안전처 식품안전나라",
-    # TODO: 아래 라벨은 명세 확정 시 기관 표기를 다시 확인한다.
-    "kats": "국가기술표준원",
-    "mfds_cosmetic": "식품의약품안전처",
-    **{f"ftc_{c}": "공정거래위원회" for c in FTC_CATEGORIES},
 }
 
 

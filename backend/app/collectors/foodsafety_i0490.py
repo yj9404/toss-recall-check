@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -12,6 +13,7 @@ from app.collectors.base import (
     Collector,
     RecallRecord,
     clean_text,
+    parse_image_urls,
     parse_kst_datetime,
 )
 
@@ -41,13 +43,6 @@ def parse_barcode(value: Any) -> str | None:
     if text is not None and BARCODE_RE.fullmatch(text):
         return text
     return None
-
-
-def parse_image_urls(value: Any) -> list[str]:
-    text = clean_text(value)
-    if text is None:
-        return []
-    return [part.strip() for part in text.split(",") if part.strip()]
 
 
 def normalize_row(row: dict[str, Any]) -> RecallRecord | None:
@@ -94,7 +89,8 @@ class FoodSafetyI0490Collector(Collector):
         self._transport = transport
         self._page_size = page_size
 
-    async def fetch(self) -> list[RecallRecord]:
+    async def fetch(self, last_success_at: datetime | None = None) -> list[RecallRecord]:
+        # I0490은 날짜 조건 없이 매번 전량을 받으므로 last_success_at을 쓰지 않는다.
         if not self._api_key:
             raise CollectError("FOODSAFETY_API_KEY is not set")
 

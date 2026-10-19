@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8" ?> 
+
+<ns2:selectCntntsForOpenAPIResponse xmlns:ns2="http://www.consumer.go.kr/openapi">
+
+
+<channel>
+<return>
+
+
+<allCnt>4474</allCnt>
+<code>00</code>
+<codeMsg>정상</codeMsg>
+
+<content>
+<recallSn>RCLL_000000000607750</recallSn>
+<cntntsId>0101</cntntsId>
+<productNm><![CDATA[기타완구(완구)]]></productNm>
+<makr><![CDATA[]]></makr>
+<bsnmNm><![CDATA[핑크풋]]></bsnmNm>
+<mnfcturPd><![CDATA[]]></mnfcturPd>
+<modlNmInfo><![CDATA[핑크풋 슬라임]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[-]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[브랜드명: -, 연락처: 02-322-4110]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[]]></shrtcomCn>
+<recallSe><![CDATA[기타]]></recallSe>
+<recallPublictBgnde><![CDATA[20260916]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[]]></recallPublictEndde>
+<injryCauseResult><![CDATA[ㅇ 방부제(MIT, CMIT, MIT+CMIT) 검출됨 
+- 부위: 슬라임(하양)
+- 측정값: MIT 0.38 mg/kg, CMIT 1.42 mg/kg, MIT+CMIT 2 mg/kg
+- 기준치: 사용되지 않을 것(MIT, CMIT, MIT+CMIT)
+
+ㅇ 붕소 기준치 4.7배 초과
+- 부위: 슬라임(하양)
+- 측정값: 1 399 mg/kg
+- 기준치: 300 mg/kg 이하
+]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[ㅇ 해당 제품을 보유하고 있는 소비자는 즉시 사용을 중지할 것
+ㅇ 문의처에 연락·방문 등을 통하여 수리, 교환, 환불 등 조치를 받을 것]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[인증번호: CB067R2225-4001]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국가기술표준원]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.kats.go.kr]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국가기술표준원]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+		
+			
+				<recallImgUrls>
+					
+					
+					
+						
+						
+							
+						
+					
+						
+						
+					
+					<![CDATA[https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578512,https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578511]]>
+				</recallImgUrls>
+			
+			
+		
+	
+	
+
+</content>
+
+<content>
+<recallSn>RCLL_000000000607751</recallSn>
+<cntntsId>0101</cntntsId>
+<productNm><![CDATA[기타완구(완구)]]></productNm>
+<makr><![CDATA[]]></makr>
+<bsnmNm><![CDATA[리틀아이]]></bsnmNm>
+<mnfcturPd><![CDATA[]]></mnfcturPd>
+<modlNmInfo><![CDATA[(제품명) 허니 슬라임]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[-]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[]]></shrtcomCn>
+<recallSe><![CDATA[기타]]></recallSe>
+<recallPublictBgnde><![CDATA[20260916]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[]]></recallPublictEndde>
+<injryCauseResult><![CDATA[ㅇ 방부제(MIT, CMIT, MIT+CMIT) 검출됨
+- 부위: 투명주황색 슬라임
+- 측정값:  MIT 3.66 mg/kg, CMIT 6.61 mg/kg, MIT+CMIT 10.27 mg/kg
+- 기준치: 사용되지 않을 것(MIT, CMIT, MIT+CMIT)
+
+ㅇ 붕소 기준치 7.2배 초과
+- 부위: 투명주황색 슬라임
+- 측정값: 2 163.7 mg/kg
+- 기준치: 300 mg/kg 이하
+]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[ㅇ 해당 제품을 보유하고 있는 소비자는 즉시 사용을 중지할 것
+ㅇ 문의처에 연락·방문 등을 통하여 수리, 교환, 환불 등 조치를 받을 것]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[인증번호: CB065R2649-4001]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국가기술표준원]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.kats.go.kr]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국가기술표준원]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+		
+			
+				<recallImgUrls>
+					
+					
+					
+						
+						
+							
+						
+					
+						
+						
+					
+					<![CDATA[https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578514,https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578513]]>
+				</recallImgUrls>
+			
+			
+		
+	
+	
+
+</content>
+
+<content>
+<recallSn>RCLL_000000000607650</recallSn>
+<cntntsId>0101</cntntsId>
+<productNm><![CDATA[휴대용 블루투스 스피커]]></productNm>
+<makr><![CDATA[]]></makr>
+<bsnmNm><![CDATA[사운드솔루션]]></bsnmNm>
+<mnfcturPd><![CDATA[]]></mnfcturPd>
+<modlNmInfo><![CDATA[YOYO (M) Light Grey]]></modlNmInfo>
+<mnfcturNoInfo><![CDATA[]]></mnfcturNoInfo>
+<stdBrcd><![CDATA[]]></stdBrcd>
+<distbTmlmtDe><![CDATA[]]></distbTmlmtDe>
+<prmisnNo><![CDATA[]]></prmisnNo>
+<mdlpClNo><![CDATA[]]></mdlpClNo>
+<aditfield13><![CDATA[]]></aditfield13>
+<etcInfo><![CDATA[브랜드명: Cambridge Audio, 연락처: 02-2168-4510]]></etcInfo>
+<mainSleoffic><![CDATA[]]></mainSleoffic>
+<shrtcomCn><![CDATA[]]></shrtcomCn>
+<recallSe><![CDATA[기타]]></recallSe>
+<recallPublictBgnde><![CDATA[20260914]]></recallPublictBgnde>
+<recallPublictEndde><![CDATA[]]></recallPublictEndde>
+<injryCauseResult><![CDATA[스피커 내부의 리튬 이온 배터리가 과열되어 열폭주 현상이 발생, 화재 또는 연기가 발생하거나 고온의 배터리 물질 등이 분출될 수 있음
+]]></injryCauseResult>
+<injryFrgltyTrgter><![CDATA[]]></injryFrgltyTrgter>
+<hrmflGrad><![CDATA[]]></hrmflGrad>
+<acdntCn><![CDATA[]]></acdntCn>
+<cnsmrGhvrTips><![CDATA[스피커 사용을 즉시 중단하시고, 전원 플러그를 뽑아 전원 공급을 차단해 주십시오. 제품을 절대 충전하지 마시고, 가연성 물질로부터 떨어진 안전한 장소에 보관해 주시기 바랍니다.
+
+보상 절차를 진행하기 위해 Cambridge Audio는 귀하가 대상 Yoyo (M) 제품을 보유하고 있는지 확인해야 합니다. 따라서 당사의 추가 안내가 있을 때까지 스피커를 임의로 폐기, 판매, 양도, 개조하지 마시고 보관해 주십시오.
+
+아래의 링크를 통해 리콜 등록을 진행해 주시면 본사 전담팀에서 환불 및 회수와 관련된 절차를 안내해 드릴 것입니다.
+https://www.cambridgeaudio.com/row/en/product-safety/yoyo-m?langcode=ko]]></cnsmrGhvrTips>
+<trtmntAtpn><![CDATA[]]></trtmntAtpn>
+<recallBgnde><![CDATA[]]></recallBgnde>
+<recallEndde><![CDATA[]]></recallEndde>
+<recallProcssInfo><![CDATA[인증번호: -]]></recallProcssInfo>
+<recallEntrpsInfo><![CDATA[]]></recallEntrpsInfo>
+<infoOriginInstt><![CDATA[국가기술표준원]]></infoOriginInstt>
+<infoOriginInsttUrl><![CDATA[http://www.kats.go.kr]]></infoOriginInsttUrl>
+<infoCreatInstt><![CDATA[국가기술표준원]]></infoCreatInstt>
+<infoCreatUrl><![CDATA[]]></infoCreatUrl>
+
+	
+		
+			
+				<recallImgUrls>
+					
+					
+					
+						
+						
+							
+						
+					
+						
+						
+					
+					<![CDATA[https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10575864,https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10575863]]>
+				</recallImgUrls>
+			
+			
+		
+	
+	
+
+</content>
+
+</return>
+</channel>
+</ns2:selectCntntsForOpenAPIResponse>

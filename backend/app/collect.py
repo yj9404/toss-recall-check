@@ -15,7 +15,7 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from app import db
-from app.collectors import Collector, select_collectors
+from app.collectors import Collector, log_skipped_sources, select_collectors
 from app.config import Settings, get_settings
 from app.logging_setup import setup_logging
 
@@ -28,7 +28,7 @@ ADVISORY_LOCK_KEY = 7_224_190_001
 @dataclass
 class SourceResult:
     source: str
-    status: Literal["ok", "error", "not_implemented"]
+    status: Literal["ok", "error"]
     row_count: int = 0
 
 
@@ -41,12 +41,10 @@ def redact(message: str, secrets: list[str]) -> str:
 
 async def _run_one(conn: AsyncConnection, collector: Collector, secrets: list[str]) -> SourceResult:
     try:
-        records = await collector.fetch()
+        last_success_at = await db.get_last_success_at(conn, collector.source)
+        records = await collector.fetch(last_success_at)
         await db.upsert_records(conn, records)
         await db.record_success(conn, collector.source, len(records))
-    except NotImplementedError:
-        log.info("%s: not implemented, skipped", collector.source)
-        return SourceResult(collector.source, "not_implemented")
     except Exception as exc:
         message = redact(f"{type(exc).__name__}: {exc}", secrets)
         log.error("%s: collect failed: %s", collector.source, message)
@@ -96,7 +94,10 @@ async def _main(settings: Settings, source: str | None) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.collect")
-    parser.add_argument("--source", help="이 source만 수집 (예: foodsafety_i0490)")
+    parser.add_argument(
+        "--source",
+        help="이 source만 수집 (예: foodsafety_i0490, consumer24, consumer24_0301)",
+    )
     args = parser.parse_args(argv)
     setup_logging()
     settings = get_settings()
@@ -104,7 +105,10 @@ def main(argv: list[str] | None = None) -> int:
         select_collectors(settings, args.source)
     except ValueError as exc:
         parser.error(str(exc))
-    return asyncio.run(_main(settings, args.source))
+    log_skipped_sources(settings)
+    # psycopg 비동기 모드는 Windows 기본 ProactorEventLoop에서 동작하지 않는다.
+    loop_factory = asyncio.SelectorEventLoop if sys.platform == "win32" else None
+    return asyncio.run(_main(settings, args.source), loop_factory=loop_factory)
 
 
 if __name__ == "__main__":

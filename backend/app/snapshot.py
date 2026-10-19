@@ -37,6 +37,10 @@ class Item:
     barcode: str | None
     image_urls: tuple[str, ...]
     source_url: str | None
+    source_label: str | None
+    model_text: str | None
+    consumer_tips: str | None
+    recall_period_text: str | None
     registered_at: datetime
     last_seen_at: datetime
     search_key: str = field(repr=False)
@@ -63,6 +67,10 @@ def _to_item(row: Mapping[str, Any]) -> Item:
         barcode=row.get("barcode"),
         image_urls=tuple(row.get("image_urls") or ()),
         source_url=row.get("source_url"),
+        source_label=row.get("source_label"),
+        model_text=row.get("model_text"),
+        consumer_tips=row.get("consumer_tips"),
+        recall_period_text=row.get("recall_period_text"),
         registered_at=row["registered_at"].astimezone(KST),
         last_seen_at=row["last_seen_at"].astimezone(KST),
         search_key=search_key,

@@ -6,9 +6,10 @@ import pytest
 from app import db
 from app.api import record_source_status
 from app.collect import SourceResult
+from app.collectors import consumer24
 from app.collectors.base import KST
 from app.collectors.foodsafety_i0490 import normalize_row
-from tests.conftest import load_fixture, make_row, record_to_row
+from tests.conftest import FIXTURES, load_fixture, make_row, record_to_row
 
 
 @pytest.fixture
@@ -57,7 +58,8 @@ def test_recalls_category_filter(make_client):
     body = client.get("/api/v1/recalls", params={"category": "cosmetic"}).json()
     assert [i["id"] for i in body["items"]] == [2]
     assert client.get("/api/v1/recalls", params={"category": "nope"}).status_code == 400
-    # 기본 설정에서 vehicle은 노출하지 않는다.
+    # 노출하지 않는 카테고리는 요청할 수 없다.
+    client = make_client(rows, enabled_categories="food,cosmetic")
     assert client.get("/api/v1/recalls", params={"category": "vehicle"}).status_code == 400
 
 
@@ -71,7 +73,7 @@ def test_categories_hides_empty_and_disabled(make_client):
     ]
     client = make_client(rows)
     body = client.get("/api/v1/categories").json()
-    assert [c["code"] for c in body] == ["food"]
+    assert [c["code"] for c in body] == ["food", "vehicle"]  # vehicle도 기본 노출
     assert body[0]["label"] == "식품"
     assert body[0]["count"] == 2
     assert body[0]["latest_registered_at"] == (now - timedelta(days=1)).isoformat(
@@ -79,10 +81,14 @@ def test_categories_hides_empty_and_disabled(make_client):
     )
 
     client = make_client(rows, hide_empty_days=365)
-    assert [c["code"] for c in client.get("/api/v1/categories").json()] == ["food", "cosmetic"]
+    assert [c["code"] for c in client.get("/api/v1/categories").json()] == [
+        "food",
+        "cosmetic",
+        "vehicle",
+    ]
 
-    client = make_client(rows, enabled_categories="food,vehicle")
-    assert [c["code"] for c in client.get("/api/v1/categories").json()] == ["food", "vehicle"]
+    client = make_client(rows, enabled_categories="food,cosmetic")
+    assert [c["code"] for c in client.get("/api/v1/categories").json()] == ["food"]
 
 
 def test_recall_detail(make_client, fixture_rows):
@@ -98,9 +104,47 @@ def test_recall_detail(make_client, fixture_rows):
     assert body["source_label"] == "식품의약품안전처 식품안전나라"
     assert body["last_seen_at"].endswith("+09:00")
     assert "raw" not in body
+    # 소비자24 전용 필드는 식품안전나라 항목에서 null
+    assert body["model_text"] is None
+    assert body["consumer_tips"] is None
+    assert body["recall_period_text"] is None
 
     assert client.get("/api/v1/recalls/999").status_code == 404
     assert client.get("/api/v1/recalls/abc").status_code == 422
+
+
+def test_consumer24_detail_fields(make_client):
+    rows = []
+    for name in ("consumer24_0101.xml", "consumer24_0301.xml"):
+        _, items = consumer24.parse_response((FIXTURES / name).read_bytes())
+        rows.append(record_to_row(len(rows) + 1, consumer24.normalize_item(items[0])))
+    client = make_client(rows)
+
+    product = client.get("/api/v1/recalls/1").json()
+    assert product["category_label"] == "공산품"
+    assert product["source_label"] == "국가기술표준원"  # 건별 infoOriginInstt
+    assert product["model_text"] == "핑크풋 슬라임"
+    assert product["consumer_tips"].startswith("ㅇ 해당 제품을 보유하고 있는 소비자는")
+    assert product["recall_period_text"] is None
+    # 소비자24 이미지 호스트는 기본 허용목록에 있다.
+    assert product["images"][0] == "/api/v1/image?u=" + quote(
+        "https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578512",
+        safe="",
+    )
+    assert product["thumbnail"] == product["images"][0]
+
+    vehicle = client.get("/api/v1/recalls/2").json()
+    assert vehicle["category_label"] == "자동차"
+    assert vehicle["source_label"] == "국토교통부"
+    assert vehicle["model_text"] == "아반떼 (HD), i30 (FD)"
+    assert vehicle["consumer_tips"] is None
+    assert vehicle["recall_period_text"] == "20261014~"
+
+    # 이미지 호스트를 허용목록에서 빼면 응답에서 빠진다.
+    client = make_client(rows, image_host_allowlist="coop.foodsafetykorea.go.kr")
+    product = client.get("/api/v1/recalls/1").json()
+    assert product["images"] == []
+    assert product["thumbnail"] is None
 
 
 def test_images_outside_allowlist_are_not_linked(make_client):
@@ -169,10 +213,7 @@ def test_healthz_reads_memory_only(make_client, fixture_rows):
 def test_healthz_reports_last_collection_results(make_client):
     client = make_client()
     record_source_status(client.app, [SourceResult("foodsafety_i0490", "ok", 7)])
-    record_source_status(
-        client.app,
-        [SourceResult("foodsafety_i0490", "error"), SourceResult("kats", "not_implemented")],
-    )
+    record_source_status(client.app, [SourceResult("foodsafety_i0490", "error")])
     [src] = client.get("/healthz").json()["sources"]
     assert src["source"] == "foodsafety_i0490"
     assert src["last_success_at"] and src["last_error_at"]

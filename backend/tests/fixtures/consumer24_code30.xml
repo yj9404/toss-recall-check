@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ns2:selectCntntsForOpenAPIResponse xmlns:ns2="http://www.consumer.go.kr/openapi">
+	
+<return>
+<title>OpenApiError 30</title>
+<link>http://www.consumer.go.kr/openapi/contents/index.do</link>
+<description></description>
+<language>ko</language>
+<code>30</code>
+<codeMsg>데이터없음 에러</codeMsg>
+</return>
+</ns2:selectCntntsForOpenAPIResponse>

@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app import db
 from app.collectors.base import KST, RecallRecord
 from app.config import Settings
 from app.main import create_app
@@ -16,6 +17,30 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def load_fixture(name: str) -> Any:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def fake_db(monkeypatch):
+    """수집 결과를 DB 대신 기록한다. last_success에 source별 마지막 성공 시각을 넣어 둘 수 있다."""
+    calls: dict[str, Any] = {"upsert": [], "success": [], "error": [], "last_success": {}}
+
+    async def last_success(conn, source):
+        return calls["last_success"].get(source)
+
+    async def upsert(conn, records):
+        calls["upsert"].append(records)
+
+    async def success(conn, source, n):
+        calls["success"].append((source, n))
+
+    async def error(conn, source, message):
+        calls["error"].append((source, message))
+
+    monkeypatch.setattr(db, "get_last_success_at", last_success)
+    monkeypatch.setattr(db, "upsert_records", upsert)
+    monkeypatch.setattr(db, "record_success", success)
+    monkeypatch.setattr(db, "record_error", error)
+    return calls
 
 
 def make_settings(**overrides: Any) -> Settings:

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import db
 from app.api import collect_and_reload, router
-from app.collectors import select_collectors
+from app.collectors import log_skipped_sources, select_collectors
 from app.collectors.base import KST
 from app.config import Settings, get_settings
 from app.images import TIMEOUT_SECONDS
@@ -38,6 +38,7 @@ async def lifespan(app: FastAPI):
     await db.apply_schema(pool)
     app.state.snapshot = await load_snapshot(pool, settings)
     log.info("snapshot loaded: %d items", len(app.state.snapshot))
+    log_skipped_sources(settings)
 
     scheduler = AsyncIOScheduler(timezone=KST)
     scheduler.add_job(

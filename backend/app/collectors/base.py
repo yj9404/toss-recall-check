@@ -31,6 +31,11 @@ class RecallRecord(BaseModel):
     barcode: str | None = None
     image_urls: list[str] = Field(default_factory=list)
     source_url: str | None = None
+    # 건별 출처 기관명. 없으면 API가 labels.SOURCE_LABELS[source]를 쓴다.
+    source_label: str | None = None
+    model_text: str | None = None
+    consumer_tips: str | None = None
+    recall_period_text: str | None = None
     registered_at: datetime
     raw: dict[str, Any] = Field(default_factory=dict)
 
@@ -50,12 +55,19 @@ class RecallRecord(BaseModel):
 
 
 class Collector(ABC):
+    # source_state의 키. 수집 결과(성공·실패)는 source 단위로 기록된다.
     source: str
     # 이 수집기가 채우는 카테고리. 기본 수집 대상은 ENABLED_CATEGORIES와 겹치는 수집기다.
     categories: tuple[str, ...]
 
+    @property
+    def group(self) -> str:
+        """--source로 고를 때 쓰는 묶음 이름. 여러 source로 나뉜 출처만 따로 정한다."""
+        return self.source
+
     @abstractmethod
-    async def fetch(self) -> list[RecallRecord]: ...
+    async def fetch(self, last_success_at: datetime | None = None) -> list[RecallRecord]:
+        """last_success_at: 이 source의 마지막 성공 시각 (없으면 None). 증분 수집에 쓴다."""
 
 
 def clean_text(value: Any) -> str | None:
@@ -64,6 +76,14 @@ def clean_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def parse_image_urls(value: Any) -> list[str]:
+    """쉼표로 이어진 이미지 URL 목록을 나눈다."""
+    text = clean_text(value)
+    if text is None:
+        return []
+    return [part.strip() for part in text.split(",") if part.strip()]
 
 
 def parse_kst_datetime(value: Any) -> datetime | None:

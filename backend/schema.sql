@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS recalls (
     UNIQUE (source, source_id)
 );
 
+-- 처음 만든 뒤 추가된 열. 이미 있는 테이블에도 붙도록 ALTER로 둔다.
+ALTER TABLE recalls ADD COLUMN IF NOT EXISTS source_label       text;
+ALTER TABLE recalls ADD COLUMN IF NOT EXISTS model_text         text;
+ALTER TABLE recalls ADD COLUMN IF NOT EXISTS consumer_tips      text;
+ALTER TABLE recalls ADD COLUMN IF NOT EXISTS recall_period_text text;
+
 CREATE TABLE IF NOT EXISTS source_state (
     source          text PRIMARY KEY,
     last_success_at timestamptz,

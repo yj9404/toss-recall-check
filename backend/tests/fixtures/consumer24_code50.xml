@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ns2:selectCntntsForOpenAPIResponse xmlns:ns2="http://www.consumer.go.kr/openapi">
+	
+<return>
+<title>OpenApiError 50</title>
+<link>http://www.consumer.go.kr/openapi/contents/index.do</link>
+<description></description>
+<language>ko</language>
+<code>50</code>
+<codeMsg>등록되지 않은 서비스키 에러</codeMsg>
+</return>
+</ns2:selectCntntsForOpenAPIResponse>

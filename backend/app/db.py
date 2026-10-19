@@ -1,5 +1,6 @@
 """DB 접근. 수집기 upsert, 기동 시 스냅샷 로드, /internal/health/db 확인에서만 쓴다."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,10 @@ _UPSERT_COLUMNS = (
     "barcode",
     "image_urls",
     "source_url",
+    "source_label",
+    "model_text",
+    "consumer_tips",
+    "recall_period_text",
     "registered_at",
     "raw",
 )
@@ -81,6 +86,14 @@ async def upsert_records(conn: AsyncConnection, records: list[RecallRecord]) -> 
         return
     async with conn.transaction(), conn.cursor() as cur:
         await cur.executemany(UPSERT_SQL, [_record_params(r) for r in records])
+
+
+async def get_last_success_at(conn: AsyncConnection, source: str) -> datetime | None:
+    cur = await conn.execute(
+        "SELECT last_success_at FROM source_state WHERE source = %s", (source,)
+    )
+    row = await cur.fetchone()
+    return row[0] if row else None
 
 
 async def record_success(conn: AsyncConnection, source: str, row_count: int) -> None:
@@ -122,7 +135,8 @@ async def fetch_snapshot_rows(
             """
             SELECT id, source, category, product_name, company_name, reason, grade,
                    manufactured_text, expiry_text, package_unit, recall_method, address,
-                   barcode, image_urls, source_url, registered_at, last_seen_at
+                   barcode, image_urls, source_url, source_label, model_text, consumer_tips,
+                   recall_period_text, registered_at, last_seen_at
             FROM recalls
             WHERE registered_at >= now() - make_interval(days => %s)
               AND category = ANY(%s)
