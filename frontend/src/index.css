@@ -1,0 +1,218 @@
+:root {
+  color-scheme: light;
+  --text-strong: #191f28;
+  --text-sub: #6b7684;
+  --line: #f2f4f6;
+  --card: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Toss Product Sans', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #fff;
+  color: var(--text-strong);
+  word-break: keep-all;
+}
+
+@media (min-width: 481px) {
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background-color: #f5f5f5 !important;
+  }
+}
+
+#root {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+}
+
+.page {
+  min-height: 100vh;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.section {
+  padding: 8px 20px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+}
+
+.search__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.recall-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.recall-card {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  margin: 6px 0;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recall-card__thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.recall-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.recall-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recall-card__name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.recall-card__company {
+  color: var(--text-sub);
+  font-size: 15px;
+}
+
+.recall-card__reason {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.recall-card__meta {
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+.banner-slot {
+  width: 100%;
+  margin: 16px 0;
+}
+
+.empty,
+.barcode-result {
+  padding: 32px 20px;
+}
+
+.empty {
+  text-align: center;
+}
+
+.empty p,
+.barcode-result p {
+  margin: 8px 0 0;
+  color: var(--text-sub);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.barcode-result strong {
+  font-size: 17px;
+}
+
+.barcode-result .recall-list {
+  margin-top: 16px;
+  padding: 0;
+}
+
+.barcode-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 20px 16px;
+}
+
+.inline-error {
+  margin: 8px 20px 0;
+  color: var(--text-sub);
+  font-size: 15px;
+}
+
+.disclaimer {
+  margin: 24px 20px 0;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-badges {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 8px;
+}
+
+.detail-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 20px;
+}
+
+.detail-images img {
+  width: 100%;
+  border-radius: 12px;
+}
+
+.detail-rows {
+  margin: 0;
+  padding: 8px 20px;
+}
+
+.detail-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-row dt {
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+.detail-row dd {
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-line;
+}

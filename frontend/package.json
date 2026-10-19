@@ -1,0 +1,45 @@
+{
+  "name": "recall-check-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "build": "tsc -b && vite build && ait build",
+    "build:live": "tsc -b && vite build --mode live && ait build",
+    "deploy": "ait deploy"
+  },
+  "dependencies": {
+    "@apps-in-toss/web-framework": "3.8.0",
+    "@emotion/react": "^11.0.0",
+    "@toss/tds-colors": "latest",
+    "@toss/tds-mobile": "latest",
+    "@toss/tds-mobile-ait": "latest",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.30.6"
+  },
+  "devDependencies": {
+    "@apps-in-toss/devtools": "^3.8.0",
+    "@eslint/js": "^9.21.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.21.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^15.15.0",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.4.2",
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.24.1",
+    "vite": "^6.2.0",
+    "vitest": "^5.0.5"
+  }
+}
