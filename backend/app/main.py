@@ -75,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.pool = None
+    app.state.source_status = {}
     app.state.snapshot = Snapshot()
     app.state.image_client = httpx.AsyncClient(timeout=TIMEOUT_SECONDS)
     app.add_middleware(

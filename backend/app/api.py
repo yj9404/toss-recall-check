@@ -1,10 +1,11 @@
 import hmac
 import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from app import db, images
@@ -20,6 +21,13 @@ log = logging.getLogger(__name__)
 BARCODE_RE = re.compile(r"[0-9]{13}")
 
 router = APIRouter()
+
+
+@dataclass
+class SourceStatus:
+    last_success_at: datetime | None = None
+    last_error_at: datetime | None = None
+    last_row_count: int | None = None
 
 
 class CategoryOut(BaseModel):
@@ -184,31 +192,60 @@ async def proxy_image(request: Request, u: Annotated[str, Query(max_length=2048)
 
 @router.get("/healthz")
 async def healthz(request: Request) -> dict:
+    """메모리만 본다. DB를 깨우지 않으므로 업타임 모니터가 자주 호출해도 된다."""
     snapshot = _snapshot(request)
-    pool = request.app.state.pool
-    sources = []
-    db_status = "unavailable"
-    if pool is not None:
-        try:
-            states = await db.fetch_source_states(pool)
-            db_status = "ok"
-            sources = [
-                {
-                    "source": s["source"],
-                    "last_success_at": _iso(s["last_success_at"]) if s["last_success_at"] else None,
-                    "last_error_at": _iso(s["last_error_at"]) if s["last_error_at"] else None,
-                    "last_row_count": s["last_row_count"],
-                }
-                for s in states
-            ]
-        except Exception as exc:
-            log.warning("healthz: db unavailable: %s", type(exc).__name__)
     return {
         "status": "ok",
-        "db": db_status,
         "snapshot": {"count": len(snapshot), "loaded_at": _iso(snapshot.loaded_at)},
-        "sources": sources,
+        "sources": [
+            {
+                "source": source,
+                "last_success_at": _iso(s.last_success_at) if s.last_success_at else None,
+                "last_error_at": _iso(s.last_error_at) if s.last_error_at else None,
+                "last_row_count": s.last_row_count,
+            }
+            for source, s in sorted(request.app.state.source_status.items())
+        ],
     }
+
+
+def _require_admin(
+    request: Request, x_admin_token: Annotated[str | None, Header()] = None
+) -> None:
+    expected = _settings(request).admin_token.get_secret_value()
+    if (
+        not expected
+        or not x_admin_token
+        or not hmac.compare_digest(x_admin_token.encode(), expected.encode())
+    ):
+        raise HTTPException(403, "forbidden")
+
+
+@router.get("/internal/health/db", dependencies=[Depends(_require_admin)])
+async def health_db(request: Request) -> dict:
+    pool = request.app.state.pool
+    if pool is None:
+        raise HTTPException(503, "db unavailable")
+    try:
+        await db.ping(pool)
+    except Exception as exc:
+        log.warning("health/db: db unavailable: %s", type(exc).__name__)
+        raise HTTPException(503, "db unavailable") from None
+    return {"db": "ok"}
+
+
+def record_source_status(app, results: list[SourceResult]) -> None:
+    """수집 결과를 메모리에 반영한다. /healthz가 이 값을 그대로 돌려준다."""
+    now = datetime.now(KST)
+    for r in results:
+        if r.status == "not_implemented":
+            continue
+        state = app.state.source_status.setdefault(r.source, SourceStatus())
+        if r.status == "ok":
+            state.last_success_at = now
+            state.last_row_count = r.row_count
+        else:
+            state.last_error_at = now
 
 
 async def collect_and_reload(app, collectors: list[Collector]) -> list[SourceResult] | None:
@@ -216,24 +253,17 @@ async def collect_and_reload(app, collectors: list[Collector]) -> list[SourceRes
     settings: Settings = app.state.settings
     results = await run_collection(app.state.pool, collectors, settings.secret_values())
     if results is not None:
+        record_source_status(app, results)
         app.state.snapshot = await load_snapshot(app.state.pool, settings)
     return results
 
 
-@router.post("/internal/collect")
+@router.post("/internal/collect", dependencies=[Depends(_require_admin)])
 async def trigger_collect(
     request: Request,
     source: str | None = None,
-    x_admin_token: Annotated[str | None, Header()] = None,
 ) -> dict:
     settings = _settings(request)
-    expected = settings.admin_token.get_secret_value()
-    if (
-        not expected
-        or not x_admin_token
-        or not hmac.compare_digest(x_admin_token.encode(), expected.encode())
-    ):
-        raise HTTPException(403, "forbidden")
     try:
         collectors = select_collectors(settings, source)
     except ValueError:

@@ -3,6 +3,9 @@ from urllib.parse import quote
 
 import pytest
 
+from app import db
+from app.api import record_source_status
+from app.collect import SourceResult
 from app.collectors.base import KST
 from app.collectors.foodsafety_i0490 import normalize_row
 from tests.conftest import load_fixture, make_row, record_to_row
@@ -154,8 +157,51 @@ def test_internal_collect_disabled_without_admin_token(make_client):
     assert client.post("/internal/collect", headers={"X-Admin-Token": ""}).status_code == 403
 
 
-def test_healthz_without_db(make_client, fixture_rows):
-    body = make_client(fixture_rows).get("/healthz").json()
+def test_healthz_reads_memory_only(make_client, fixture_rows):
+    client = make_client(fixture_rows)
+    body = client.get("/healthz").json()
+    assert body["status"] == "ok"
     assert body["snapshot"]["count"] == 3
-    assert body["db"] == "unavailable"
+    assert "db" not in body
     assert body["sources"] == []
+
+
+def test_healthz_reports_last_collection_results(make_client):
+    client = make_client()
+    record_source_status(client.app, [SourceResult("foodsafety_i0490", "ok", 7)])
+    record_source_status(
+        client.app,
+        [SourceResult("foodsafety_i0490", "error"), SourceResult("kats", "not_implemented")],
+    )
+    [src] = client.get("/healthz").json()["sources"]
+    assert src["source"] == "foodsafety_i0490"
+    assert src["last_success_at"] and src["last_error_at"]
+    assert src["last_row_count"] == 7  # 실패해도 마지막 성공 건수는 유지
+
+
+def test_health_db_requires_admin_token(make_client):
+    client = make_client(admin_token="right-token")
+    assert client.get("/internal/health/db").status_code == 403
+    assert client.get("/internal/health/db", headers={"X-Admin-Token": "x"}).status_code == 403
+    # 토큰이 맞아도 풀이 없으면 503
+    resp = client.get("/internal/health/db", headers={"X-Admin-Token": "right-token"})
+    assert resp.status_code == 503
+
+
+def test_health_db_ok_and_failure(make_client, monkeypatch):
+    client = make_client(admin_token="t")
+    client.app.state.pool = object()
+    headers = {"X-Admin-Token": "t"}
+
+    async def ok(pool):
+        return None
+
+    async def boom(pool):
+        raise RuntimeError("secret")
+
+    monkeypatch.setattr(db, "ping", ok)
+    assert client.get("/internal/health/db", headers=headers).json() == {"db": "ok"}
+    monkeypatch.setattr(db, "ping", boom)
+    resp = client.get("/internal/health/db", headers=headers)
+    assert resp.status_code == 503
+    assert "secret" not in resp.text

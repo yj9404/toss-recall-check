@@ -1,4 +1,4 @@
-"""DB 접근. 수집기 upsert, 기동 시 스냅샷 로드, /healthz 상태 조회에서만 쓴다."""
+"""DB 접근. 수집기 upsert, 기동 시 스냅샷 로드, /internal/health/db 확인에서만 쓴다."""
 
 from pathlib import Path
 from typing import Any
@@ -109,13 +109,9 @@ async def record_error(conn: AsyncConnection, source: str, message: str) -> None
     )
 
 
-async def fetch_source_states(pool: AsyncConnectionPool) -> list[dict[str, Any]]:
-    async with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            "SELECT source, last_success_at, last_error_at, last_row_count"
-            " FROM source_state ORDER BY source"
-        )
-        return await cur.fetchall()
+async def ping(pool: AsyncConnectionPool) -> None:
+    async with pool.connection() as conn:
+        await conn.execute("SELECT 1")
 
 
 async def fetch_snapshot_rows(

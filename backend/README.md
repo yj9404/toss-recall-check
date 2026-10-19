@@ -9,7 +9,7 @@ backend/
   schema.sql                  기동 시 CREATE TABLE IF NOT EXISTS로 적용
   app/
     main.py                   FastAPI 앱 팩토리, lifespan(스키마 적용·스냅샷 로드·스케줄러), CORS
-    api.py                    /api/v1/*, /healthz, /internal/collect
+    api.py                    /api/v1/*, /healthz, /internal/*
     snapshot.py               메모리 스냅샷 (검색·카테고리 집계·바코드)
     images.py                 이미지 프록시 (허용목록·5초·3MB·image/*)
     db.py                     연결 풀, upsert, source_state, 스냅샷 로드 쿼리
@@ -25,7 +25,7 @@ backend/
 ### 읽기는 메모리, DB는 저장용
 
 - 기동 시, 그리고 수집이 끝날 때마다 최근 `SNAPSHOT_DAYS`일 안에 등록된 행을 `raw` 없이 읽어 스냅샷을 새로 만들고 통째로 교체한다.
-- `/api/v1/*`는 DB에 접근하지 않는다. DB 접근은 수집(upsert), 스냅샷 로드, `/healthz`에서만 일어난다.
+- `/api/v1/*`는 DB에 접근하지 않는다. DB 접근은 수집(upsert), 스냅샷 로드, `/internal/health/db`에서만 일어난다.
 - 연결 풀은 `min_size=0`, `max_idle=60s`로 두어 유휴 연결이 남지 않게 했다. Neon 컴퓨트가 5분 뒤 절전할 수 있다.
 
 ## 로컬 실행
@@ -72,7 +72,7 @@ curl -X POST "https://<host>/internal/collect?source=foodsafety_i0490" -H "X-Adm
 1. GitHub 저장소로 서비스를 만들고 **Root Directory를 `backend`** 로 지정한다. `Dockerfile`이 자동으로 쓰인다.
 2. Variables에 아래 환경변수를 넣는다 (`PORT`는 Railway가 주입).
 3. Networking에서 도메인을 생성한다. 인스턴스(replica)는 1개로 둔다. 스케줄러가 프로세스 안에서 돈다 (여러 개여도 advisory lock으로 수집이 겹치지는 않는다).
-4. Healthcheck Path를 `/healthz`로 둘 수 있다. 단, `/healthz`는 매번 DB를 조회하므로 **외부 업타임 모니터로 자주(예: 1분 간격) 호출하면 Neon이 절전하지 못해 컴퓨트 한도를 넘을 수 있다.**
+4. Healthcheck Path를 `/healthz`로 둘 수 있다. `/healthz`는 메모리만 보므로 업타임 모니터가 자주 호출해도 Neon을 깨우지 않는다. DB 연결 확인용 `/internal/health/db`는 모니터에 걸지 말 것.
 
 ## 환경변수
 
@@ -81,7 +81,7 @@ curl -X POST "https://<host>/internal/collect?source=foodsafety_i0490" -H "X-Adm
 | `DATABASE_URL` | (필수) | Neon direct 연결 문자열 |
 | `FOODSAFETY_API_KEY` | (필수) | 식품안전나라 OpenAPI 인증키 |
 | `DATA_GO_KR_API_KEY` | | 공공데이터포털 키 (미구현 수집기용, 쓸지 확인 필요) |
-| `ADMIN_TOKEN` | | `POST /internal/collect`의 `X-Admin-Token`. 비우면 이 엔드포인트는 항상 403 |
+| `ADMIN_TOKEN` | | `/internal/*`의 `X-Admin-Token`. 비우면 이 엔드포인트들은 항상 403 |
 | `APP_NAME` | `recall-check` | CORS origin `https://{APP_NAME}.web.tossmini.com`, `https://{APP_NAME}.private-web.tossmini.com` |
 | `ENV` | `prod` | `dev`면 `http://localhost:5173` CORS 허용, `/docs` 노출 |
 | `ENABLED_CATEGORIES` | vehicle을 뺀 전부 | 쉼표 구분. 노출 카테고리이자 기본 수집 대상. 모르는 코드는 기동 시 오류 |
@@ -104,7 +104,8 @@ curl -X POST "https://<host>/internal/collect?source=foodsafety_i0490" -H "X-Adm
 | `GET /api/v1/recalls/{id}` | Detail |
 | `GET /api/v1/recalls/barcode/{barcode}` | `{found, items: [Summary]}`. 13자리 숫자가 아니면 400. **`found: false`는 "회수 목록에 없다"는 뜻일 뿐 안전하다는 뜻이 아니다.** |
 | `GET /api/v1/image?u=<원본 URL>` | 이미지 프록시. 허용목록 밖이면 400, 원본 실패 502, 시간 초과 504 |
-| `GET /healthz` | `{status, db, snapshot: {count, loaded_at}, sources: [{source, last_success_at, last_error_at, last_row_count}]}` |
+| `GET /healthz` | `{status, snapshot: {count, loaded_at}, sources: [{source, last_success_at, last_error_at, last_row_count}]}`. 메모리 값이며 소스별 값은 이 프로세스가 수집을 한 번 끝낸 뒤부터 채워진다 |
+| `GET /internal/health/db` | 헤더 `X-Admin-Token` 필요. `SELECT 1` 성공 시 `{db: "ok"}`, 실패 시 503 |
 | `POST /internal/collect?source=` | 헤더 `X-Admin-Token` 필요. 수집 후 스냅샷 교체 |
 
 `thumbnail`과 `images[]`는 **API 기준 상대 경로**(`/api/v1/image?u=...`)다. 프론트엔드가 API 베이스 URL을 앞에 붙여 쓴다. 허용목록 밖 호스트의 이미지는 목록에서 빠진다.
