@@ -10,6 +10,25 @@ MAX_BYTES = 3 * 1024 * 1024
 PROXY_PATH = "/api/v1/image"
 
 
+# 원본(식약처)은 Content-Type 없이 응답하므로 헤더 대신 본문 시그니처로 형식을 정한다.
+# 래스터 형식만 허용한다. SVG·HTML은 스크립트를 담을 수 있어 여기에 없다.
+_SIGNATURES: tuple[tuple[bytes, str], ...] = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_image_type(body: bytes) -> str | None:
+    for magic, content_type in _SIGNATURES:
+        if body.startswith(magic):
+            return content_type
+    if body[:4] == b"RIFF" and body[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 class ImageUrlError(ValueError):
     pass
 
@@ -49,10 +68,6 @@ async def fetch_image(client: httpx.AsyncClient, url: str) -> tuple[bytes, str]:
             async with client.stream("GET", url, follow_redirects=False) as resp:
                 if resp.status_code != 200:
                     raise UpstreamError(502)
-                content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
-                # SVG는 스크립트를 담을 수 있어 제외한다.
-                if not content_type.startswith("image/") or content_type == "image/svg+xml":
-                    raise UpstreamError(502)
                 length = resp.headers.get("content-length")
                 if length and length.isdigit() and int(length) > MAX_BYTES:
                     raise UpstreamError(502)
@@ -61,7 +76,11 @@ async def fetch_image(client: httpx.AsyncClient, url: str) -> tuple[bytes, str]:
                     body += chunk
                     if len(body) > MAX_BYTES:
                         raise UpstreamError(502)
-                return bytes(body), content_type
+                data = bytes(body)
+                content_type = sniff_image_type(data)
+                if content_type is None:
+                    raise UpstreamError(502)
+                return data, content_type
     except (TimeoutError, httpx.TimeoutException):
         raise UpstreamError(504) from None
     except httpx.HTTPError:

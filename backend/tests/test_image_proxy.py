@@ -56,6 +56,22 @@ def test_proxy_rejects_hosts_outside_allowlist(proxy_client, url):
     assert calls == []
 
 
+def test_proxy_sniffs_jpeg_without_content_type(proxy_client):
+    # 식약처 이미지 서버는 Content-Type 헤더 없이 JPEG를 보낸다.
+    jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"0" * 100
+    client, _ = proxy_client(lambda r: httpx.Response(200, content=jpeg))
+    resp = client.get("/api/v1/image", params={"u": ALLOWED})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/jpeg"
+
+
+def test_proxy_ignores_spoofed_content_type(proxy_client):
+    client, _ = proxy_client(
+        lambda r: httpx.Response(200, content=b"<html>", headers={"content-type": "image/png"})
+    )
+    assert client.get("/api/v1/image", params={"u": ALLOWED}).status_code == 502
+
+
 def test_proxy_rejects_non_image(proxy_client):
     client, _ = proxy_client(
         lambda r: httpx.Response(200, content=b"<html>", headers={"content-type": "text/html"})
