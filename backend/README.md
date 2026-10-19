@@ -82,7 +82,7 @@ curl -X POST "https://<host>/internal/collect?source=foodsafety_i0490" -H "X-Adm
 | `FOODSAFETY_API_KEY` | (필수) | 식품안전나라 OpenAPI 인증키 |
 | `DATA_GO_KR_API_KEY` | | 공공데이터포털 키 (미구현 수집기용, 쓸지 확인 필요) |
 | `ADMIN_TOKEN` | | `/internal/*`의 `X-Admin-Token`. 비우면 이 엔드포인트들은 항상 403 |
-| `APP_NAME` | `recall-check` | CORS origin `https://{APP_NAME}.web.tossmini.com`, `https://{APP_NAME}.private-web.tossmini.com` |
+| `APP_NAME` | `recall` | CORS origin `https://{APP_NAME}.apps.tossmini.com`, `.private-apps.tossmini.com`(SDK 3.1+), `.web.tossmini.com`, `.private-web.tossmini.com`(3.0.x) |
 | `ENV` | `prod` | `dev`면 `http://localhost:5173` CORS 허용, `/docs` 노출 |
 | `ENABLED_CATEGORIES` | vehicle을 뺀 전부 | 쉼표 구분. 노출 카테고리이자 기본 수집 대상. 모르는 코드는 기동 시 오류 |
 | `COLLECT_INTERVAL_MINUTES` | `60` | 수집 주기 (기동 직후 1회 추가 실행) |

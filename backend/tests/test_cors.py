@@ -1,7 +1,9 @@
 import pytest
 
-LIVE = "https://recall-check.web.tossmini.com"
-PRIVATE = "https://recall-check.private-web.tossmini.com"
+LIVE = "https://recall.apps.tossmini.com"
+PRIVATE = "https://recall.private-apps.tossmini.com"
+LEGACY_LIVE = "https://recall.web.tossmini.com"
+LEGACY_PRIVATE = "https://recall.private-web.tossmini.com"
 LOCAL = "http://localhost:5173"
 
 
@@ -12,7 +14,7 @@ def _preflight(client, origin):
     )
 
 
-@pytest.mark.parametrize("origin", [LIVE, PRIVATE])
+@pytest.mark.parametrize("origin", [LIVE, PRIVATE, LEGACY_LIVE, LEGACY_PRIVATE])
 def test_toss_origins_allowed(make_client, origin):
     client = make_client()
     resp = client.get("/api/v1/recalls", headers={"Origin": origin})
@@ -21,7 +23,7 @@ def test_toss_origins_allowed(make_client, origin):
 
 
 @pytest.mark.parametrize(
-    "origin", ["https://evil.example", "https://other-app.web.tossmini.com", LOCAL]
+    "origin", ["https://evil.example", "https://other-app.apps.tossmini.com", LOCAL]
 )
 def test_other_origins_rejected_in_prod(make_client, origin):
     client = make_client()
@@ -38,7 +40,7 @@ def test_localhost_allowed_only_in_dev(make_client):
 
 def test_origins_follow_app_name(make_client):
     client = make_client(app_name="other-app")
-    origin = "https://other-app.web.tossmini.com"
+    origin = "https://other-app.apps.tossmini.com"
     resp = client.get("/api/v1/recalls", headers={"Origin": origin})
     assert resp.headers["access-control-allow-origin"] == origin
     assert (

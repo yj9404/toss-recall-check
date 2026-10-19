@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     foodsafety_api_key: SecretStr = SecretStr("")
     data_go_kr_api_key: SecretStr = SecretStr("")
     admin_token: SecretStr = SecretStr("")
-    app_name: str = "recall-check"
+    app_name: str = "recall"
     env: str = "prod"
     enabled_categories: str = ",".join(DEFAULT_ENABLED_CATEGORIES)
     collect_interval_minutes: int = Field(default=60, ge=1)
@@ -53,7 +53,10 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
+        # SDK 3.1.0+는 apps/private-apps, 3.0.x는 web/private-web. 롤백 대비 둘 다 허용한다.
         origins = [
+            f"https://{self.app_name}.apps.tossmini.com",
+            f"https://{self.app_name}.private-apps.tossmini.com",
             f"https://{self.app_name}.web.tossmini.com",
             f"https://{self.app_name}.private-web.tossmini.com",
         ]

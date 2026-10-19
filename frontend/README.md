@@ -1,6 +1,6 @@
 # 리콜체크 프런트엔드
 
-토스 앱인토스 WebView 미니앱(`appName: recall-check`). Vite + React + TypeScript, SDK `@apps-in-toss/web-framework` 3.x, TDS `@toss/tds-mobile`.
+토스 앱인토스 WebView 미니앱(`appName: recall`). Vite + React + TypeScript, SDK `@apps-in-toss/web-framework` 3.x, TDS `@toss/tds-mobile`.
 백엔드(`../backend`)의 읽기 전용 API만 호출해요. 로그인은 없어요.
 
 ## 구조
