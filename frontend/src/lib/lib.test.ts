@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveHomeAdGroupId, TEST_BANNER_ID } from './ads'
+import { resolveAdGroupId, TEST_BANNER_ID } from './ads'
 import { isValidBarcode, sanitizeBarcode } from './barcode'
 import { formatRegisteredAt, hasValue } from './format'
 import { appendPage } from './pagination'
@@ -51,20 +51,28 @@ describe('목록 이어 붙이기', () => {
   })
 })
 
-describe('홈 배너 광고 그룹 ID', () => {
+describe('배너 광고 그룹 ID', () => {
+  const HOME = 'VITE_AD_GROUP_HOME'
+
   it('기본은 테스트 ID', () => {
-    expect(resolveHomeAdGroupId({}, 'production')).toBe(TEST_BANNER_ID)
-    expect(resolveHomeAdGroupId({ VITE_ADS_MODE: 'test', VITE_AD_GROUP_HOME: 'home-id' }, 'production')).toBe(
+    expect(resolveAdGroupId({}, 'production', HOME)).toBe(TEST_BANNER_ID)
+    expect(resolveAdGroupId({ VITE_ADS_MODE: 'test', VITE_AD_GROUP_HOME: 'home-id' }, 'production', HOME)).toBe(
       TEST_BANNER_ID,
     )
   })
 
   it('live는 홈 광고 그룹 ID, 비어 있으면 null', () => {
-    expect(resolveHomeAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: 'home-id' }, 'production')).toBe(
+    expect(resolveAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: 'home-id' }, 'production', HOME)).toBe(
       'home-id',
     )
-    expect(resolveHomeAdGroupId({ VITE_AD_GROUP_HOME: 'home-id' }, 'live')).toBe('home-id')
-    expect(resolveHomeAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: ' ' }, 'live')).toBeNull()
-    expect(resolveHomeAdGroupId({}, 'live')).toBeNull()
+    expect(resolveAdGroupId({ VITE_AD_GROUP_HOME: 'home-id' }, 'live', HOME)).toBe('home-id')
+    expect(resolveAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: ' ' }, 'live', HOME)).toBeNull()
+    expect(resolveAdGroupId({}, 'live', HOME)).toBeNull()
+  })
+
+  it('위치마다 자기 광고 그룹 ID를 쓴다', () => {
+    const env = { VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: 'home-id', VITE_AD_GROUP_DETAIL: 'detail-id' }
+    expect(resolveAdGroupId(env, 'live', 'VITE_AD_GROUP_DETAIL')).toBe('detail-id')
+    expect(resolveAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: 'home-id' }, 'live', 'VITE_AD_GROUP_DETAIL')).toBeNull()
   })
 })

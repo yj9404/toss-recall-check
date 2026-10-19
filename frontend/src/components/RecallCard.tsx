@@ -1,7 +1,7 @@
-import { Badge } from '@toss/tds-mobile'
 import { imageUrl } from '../api/client'
 import type { RecallSummary } from '../api/types'
 import { formatRegisteredAt, hasValue } from '../lib/format'
+import { GradeBadge } from './GradeBadge'
 
 interface Props {
   item: RecallSummary
@@ -12,14 +12,19 @@ export function RecallCard({ item, onClick }: Props) {
   const thumb = imageUrl(item.thumbnail)
   return (
     <button type="button" className="recall-card" onClick={onClick}>
-      {thumb && <img className="recall-card__thumb" src={thumb} alt="" loading="lazy" />}
+      {thumb && (
+        // 원본 서버가 이미지를 못 주면 깨진 아이콘 대신 자리째 숨긴다
+        <img
+          className="recall-card__thumb"
+          src={thumb}
+          alt=""
+          loading="lazy"
+          onError={(e) => (e.currentTarget.hidden = true)}
+        />
+      )}
       <div className="recall-card__body">
         <div className="recall-card__badges">
-          {item.grade != null && (
-            <Badge size="small" variant="weak" color="elephant">
-              회수 {item.grade}등급
-            </Badge>
-          )}
+          {item.grade != null && <GradeBadge grade={item.grade} size="small" />}
           <span className="recall-card__meta">{item.category_label}</span>
         </div>
         <strong className="recall-card__name">{item.product_name}</strong>

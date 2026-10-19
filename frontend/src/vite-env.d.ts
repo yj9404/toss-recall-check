@@ -9,4 +9,5 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string
   readonly VITE_ADS_MODE?: string
   readonly VITE_AD_GROUP_HOME?: string
+  readonly VITE_AD_GROUP_DETAIL?: string
 }

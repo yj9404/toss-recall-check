@@ -25,6 +25,7 @@ src/
 | `VITE_API_BASE_URL` | 백엔드 주소. 개발 서버에서 비우면 `http://localhost:8000` |
 | `VITE_ADS_MODE` | `test`(기본) 또는 `live`. `build:live`(mode=live)에서는 지정하지 않아도 `live` |
 | `VITE_AD_GROUP_HOME` | `live`일 때 쓰는 홈 배너의 실제 광고 그룹 ID. `.env.live`에 넣어요. 비어 있으면 배너를 그리지 않아요 |
+| `VITE_AD_GROUP_DETAIL` | 상세 화면 하단 배너의 광고 그룹 ID. 규칙은 `VITE_AD_GROUP_HOME`과 같아요 |
 
 운영 빌드의 `VITE_API_BASE_URL`은 `https://` 주소여야 해요(출시 체크리스트: API는 HTTPS만). 백엔드 CORS에도 미니앱 origin이 허용돼 있어야 해요.
 
