@@ -76,6 +76,8 @@ _BLANK_LINES_RE = re.compile(r"\n{3,}")
 # cnsmrGhvrTips 문장 구분: 줄바꿈과 "ㅇ" 글머리(줄 시작이든 문장 사이에 붙어 오든)
 _TIP_SPLIT_RE = re.compile(r"[\nㅇ]")
 _TIP_KEY_DROP_RE = re.compile(r"[\s,]")
+# 값 맨 앞의 "ㅇ" 글머리. 중간 줄의 "ㅇ"은 건드리지 않는다.
+_LEADING_BULLET_RE = re.compile(r"^ㅇ\s*")
 _BARCODE_RE = re.compile(r"(?<![0-9])[0-9]{13}(?![0-9])")
 _YYYYMMDD_RE = re.compile(r"[0-9]{8}")
 
@@ -90,6 +92,18 @@ def html_to_text(value: Any) -> str | None:
     text = html.unescape(text).replace("\xa0", " ")
     text = "\n".join(line.strip() for line in text.splitlines())
     return _BLANK_LINES_RE.sub("\n\n", text).strip() or None
+
+
+def display_text(value: Any) -> str | None:
+    """html_to_text 결과에서 맨 앞의 "ㅇ" 글머리와 뒤 공백을 뺀다. 원문은 raw에 남는다.
+
+    reason(shrtcomCn·injryCauseResult)은 여러 줄 글머리 목록이라 그대로 두고,
+    consumer_tips는 consumer_tips()가 따로 보정하므로 여기를 거치지 않는다.
+    """
+    text = html_to_text(value)
+    if text is None:
+        return None
+    return _LEADING_BULLET_RE.sub("", text, count=1) or None
 
 
 def consumer_tips(value: Any) -> str | None:
@@ -172,7 +186,7 @@ def recall_method(value: Any) -> str | None:
 
     원문은 raw에 남는다.
     """
-    text = html_to_text(value)
+    text = display_text(value)
     if text is None or text.startswith("인증번호"):
         return None
     return text
@@ -193,23 +207,23 @@ def normalize_item(item: dict[str, str], menu_id: str) -> RecallRecord | None:
         source=f"{NAME}_{menu_id}",
         source_id=source_id,
         category=category,
-        product_name=html_to_text(item.get("productNm")),
-        company_name=html_to_text(item.get("bsnmNm")) or html_to_text(item.get("makr")),
+        product_name=display_text(item.get("productNm")),
+        company_name=display_text(item.get("bsnmNm")) or display_text(item.get("makr")),
         reason=html_to_text(item.get("shrtcomCn")) or html_to_text(item.get("injryCauseResult")),
         grade=None,  # hrmflGrad는 형식이 정해지지 않아 raw에만 둔다.
-        manufactured_text=html_to_text(item.get("mnfcturPd")),
-        expiry_text=html_to_text(item.get("distbTmlmtDe")),
+        manufactured_text=display_text(item.get("mnfcturPd")),
+        expiry_text=display_text(item.get("distbTmlmtDe")),
         recall_method=recall_method(item.get("recallProcssInfo")),
         # recallEntrpsInfo는 주소보다 전화번호·홈페이지가 많아 address가 아니라 contact_text에 둔다.
         address=None,
-        contact_text=html_to_text(item.get("recallEntrpsInfo")),
+        contact_text=display_text(item.get("recallEntrpsInfo")),
         barcode=parse_barcode(item.get("stdBrcd")),
         image_urls=parse_image_urls(item.get("recallImgUrls")),
         # 문서의 infoOriginUrl은 실제 응답에서 infoOriginInsttUrl이다. 건별 링크가 아니라
         # 정보 출처 기관의 홈페이지 주소다.
         source_url=clean_text(item.get("infoOriginInsttUrl")),
-        source_label=html_to_text(item.get("infoOriginInstt")) or DEFAULT_SOURCE_LABEL,
-        model_text=html_to_text(item.get("modlNmInfo")),
+        source_label=display_text(item.get("infoOriginInstt")) or DEFAULT_SOURCE_LABEL,
+        model_text=display_text(item.get("modlNmInfo")),
         consumer_tips=consumer_tips(item.get("cnsmrGhvrTips")),
         recall_period_text=recall_period(item.get("recallBgnde"), item.get("recallEndde")),
         registered_at=registered_at,

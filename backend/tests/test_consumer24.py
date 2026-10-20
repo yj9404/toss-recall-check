@@ -13,6 +13,7 @@ from app.collectors.consumer24 import (
     DEFAULT_SOURCE_LABEL,
     Consumer24Collector,
     consumer_tips,
+    display_text,
     html_to_text,
     normalize_item,
     parse_barcode,
@@ -189,6 +190,59 @@ def test_normalize_fallbacks():
     assert record.reason == "결함 내용"
     assert record.source_label == DEFAULT_SOURCE_LABEL
     assert record.source_url is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("ㅇ 핑크풋 슬라임", "핑크풋 슬라임"),
+        ("ㅇ핑크풋 슬라임", "핑크풋 슬라임"),
+        ("<p>ㅇ&nbsp;모델A</p>", "모델A"),  # HTML을 풀고 나서 본다
+        ("ㅇ 모델A\nㅇ 모델B", "모델A\nㅇ 모델B"),  # 맨 앞만 지운다
+        ("모델Aㅇ 모델B", "모델Aㅇ 모델B"),
+        ("ㅇ ", None),
+        ("", None),
+    ],
+)
+def test_display_text_strips_leading_bullet(raw, expected):
+    assert display_text(raw) == expected
+
+
+def test_normalize_strips_leading_bullet_except_reason_and_tips():
+    item = {
+        **_items("consumer24_0101.xml")[0],
+        "productNm": "ㅇ 제품",
+        "bsnmNm": "ㅇ 업체",
+        "mnfcturPd": "ㅇ 2026.10.01",
+        "distbTmlmtDe": "ㅇ 2027.10.01",
+        "recallProcssInfo": "ㅇ 교환",
+        "recallEntrpsInfo": "ㅇ 080-000-0000",
+        "infoOriginInstt": "ㅇ 기관",
+        "modlNmInfo": "ㅇ 모델A\nㅇ 모델B",
+        "shrtcomCn": "ㅇ 결함 내용",
+        "cnsmrGhvrTips": "ㅇ 사전에 없는 문장",
+    }
+    record = normalize_item(item, "0101")
+    assert record is not None
+    assert record.product_name == "제품"
+    assert record.company_name == "업체"
+    assert record.manufactured_text == "2026.10.01"
+    assert record.expiry_text == "2027.10.01"
+    assert record.recall_method == "교환"
+    assert record.contact_text == "080-000-0000"
+    assert record.source_label == "기관"
+    assert record.model_text == "모델A\nㅇ 모델B"
+    # reason과 consumer_tips는 글머리를 그대로 둔다.
+    assert record.reason == "ㅇ 결함 내용"
+    assert record.consumer_tips == "ㅇ 사전에 없는 문장"
+    assert record.raw["productNm"] == "ㅇ 제품"
+
+    # 글머리를 뺀 뒤 "인증번호"로 시작하면 회수 방법이 아니다.
+    assert recall_method("ㅇ 인증번호: CB061R123") is None
+    # bsnmNm이 글머리뿐이면 makr로 넘어간다.
+    record = normalize_item({**item, "bsnmNm": "ㅇ", "makr": "ㅇ 제조사"}, "0101")
+    assert record is not None
+    assert record.company_name == "제조사"
 
 
 @pytest.mark.parametrize(

@@ -33,6 +33,8 @@ def test_recalls_list_from_fixture(make_client, fixture_rows):
     assert first["grade"] == 3
     # 식품안전나라 이미지 호스트는 기본 허용목록에 없어 thumbnail이 null이다 (로그인 페이지로 302).
     assert [i["thumbnail"] for i in body["items"]] == [None, None, None]
+    # model_text는 소비자24 전용이라 식품안전나라 항목에서 null
+    assert [i["model_text"] for i in body["items"]] == [None, None, None]
 
     client = make_client(fixture_rows, image_host_allowlist="coop.foodsafetykorea.go.kr")
     items = client.get("/api/v1/recalls").json()["items"]
@@ -148,8 +150,8 @@ def test_recall_detail(make_client, fixture_rows):
     assert resp.status_code == 200
     body = resp.json()
     assert body["barcode"] == "8809520491483"
-    assert body["manufactured_text"] == "(제조일자) 2026-10-05"
-    assert body["expiry_text"] == "(소비기한) 2026-10-19"
+    assert body["manufactured_text"] == "2026-10-05"
+    assert body["expiry_text"] == "2026-10-19"
     assert body["images"] == []  # 기본 허용목록 밖
     assert body["source_label"] == "식품의약품안전처 식품안전나라"
     assert body["last_seen_at"].endswith("+09:00")
@@ -207,6 +209,13 @@ def test_consumer24_detail_fields(make_client):
     product = client.get("/api/v1/recalls/1").json()
     assert product["images"] == []
     assert product["thumbnail"] is None
+
+    # 목록(Summary)에도 model_text가 나온다.
+    items = client.get("/api/v1/recalls").json()["items"]
+    assert {i["id"]: i["model_text"] for i in items} == {
+        1: "핑크풋 슬라임",
+        2: "아반떼 (HD), i30 (FD)",
+    }
 
 
 def test_images_outside_allowlist_are_not_linked(make_client):

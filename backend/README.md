@@ -125,7 +125,7 @@ uv run python -m app.check_sources
 
 모든 시각은 ISO 8601, `+09:00`. 모든 항목에 출처 기관명(`source_label`)이 들어 있다. 소비자24 항목은 건별 정보 출처 기관(예: 국가기술표준원, 국토교통부)이다.
 
-Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `recall_period_text`(리콜 시작~종료일 원문, 예: `20261014~`), `contact_text`(문의처 원문. 전화번호·홈페이지·주소가 섞여 있다)는 소비자24 항목에만 값이 있고 나머지는 null이다. 소비자24 항목의 `address`는 null이다.
+`model_text`(모델명. Summary·Detail 모두)와 Detail의 `consumer_tips`(소비자 행동 요령), `recall_period_text`(리콜 시작~종료일 원문, 예: `20261014~`), `contact_text`(문의처 원문. 전화번호·홈페이지·주소가 섞여 있다)는 소비자24 항목에만 값이 있고 나머지는 null이다. 소비자24 항목의 `address`는 null이다.
 
 | 경로 | 응답 |
 |---|---|
@@ -143,7 +143,7 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 ## 데이터 메모
 
 - `recalls`는 `(source, source_id)`로 upsert한다. 수집에서 빠진 항목은 지우지 않으며 `last_seen_at`만 갱신되지 않는다.
-- 제조일자·소비기한은 원문 텍스트 그대로 저장·표시한다. "데이터없음" 같은 값도 그대로 둔다.
+- 제조일자·소비기한은 원문 텍스트로 저장·표시한다. "데이터없음" 같은 값도 그대로 둔다 (I0490의 말머리만 뺀다. 아래 참고).
 - `registered_at`은 소스 시각을 Asia/Seoul로 해석해 저장한다.
 - 수집기 하나가 실패해도 그 수집기의 upsert는 트랜잭션째 롤백되고 다른 수집기는 계속 돈다. 결과는 `source_state`에 남는다. 에러 메시지에서는 API 키를 가린다.
 - `source_state.last_row_count`는 마지막 실행에서 upsert한 건수다. 증분 수집하는 출처는 전체 건수가 아니다.
@@ -154,6 +154,7 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 - `https://openapi.foodsafetykorea.go.kr/api/{KEY}/I0490/json/{start}/{end}`를 1000건 단위로 전량 수집한다 (ERROR-336: 한 번에 최대 1000건).
 - `INFO-000` 정상, `INFO-200`(해당하는 데이터가 없습니다)은 빈 목록, 그 밖의 코드는 실패로 기록한다.
 - `BRCDNO`가 13자리 숫자일 때만 `barcode`에 넣는다. 원문은 `raw`에 남는다 (`raw`는 원본 row 전체).
+- `MNFDT`·`DISTBTMLMT` 맨 앞의 `(제조일자)`·`(소비기한)` 말머리와 뒤 공백은 `manufactured_text`·`expiry_text`에서 뺀다. 원문은 `raw`에 남는다.
 - `PRDLST_TYPE`과 무관하게 category는 `food`다. 건별 상세 링크 필드가 없어 `source_url`은 null이다.
 - 이미지(`minfo_image.do`)는 2026-10-20부터 국내 PC에서도 로그인 페이지로 302가 난다 (전날까지는 200). 그래서 기본 허용목록에서 뺐고 식품 항목에는 이미지가 나오지 않는다.
 
@@ -169,7 +170,8 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 - `stdBrcd`에서 처음 나오는 13자리 숫자를 `barcode`로 쓴다 (`a, b`·`a / b`처럼 여러 개면 첫 번째). `recallImgUrls`는 쉼표로 나눈다.
 - `registered_at`은 `recallPublictBgnde`(yyyyMMdd)의 Asia/Seoul 자정이다. 공표일이 없는 항목은 건너뛴다.
 - category와 source는 항목의 `cntntsId`가 아니라 요청한 메뉴로 정한다. 해외리콜(0501)로 요청하면 하위 분류 `0502`·`0503`·`0504`가 섞여 온다 (180일치 중 약 2/3). 항목의 `cntntsId`는 `raw`에 남는다.
-- `recallProcssInfo`가 "인증번호"로 시작하면 `recall_method`에 넣지 않는다 (공산품은 대부분 "인증번호: CB…"라 회수 방법이 아니다).
+- `reason`·`consumer_tips`를 뺀 표시 필드(제품명·업체명·제조일자·유통기한·회수 방법·문의처·출처 기관·모델명)는 값이 `ㅇ` 글머리로 시작하면 그 글머리와 뒤 공백을 뺀다. 중간에 나오는 `ㅇ`은 그대로 둔다. `reason`은 여러 줄 글머리 목록이라 손대지 않는다.
+- `recallProcssInfo`가 (글머리를 뺀 뒤) "인증번호"로 시작하면 `recall_method`에 넣지 않는다 (공산품은 대부분 "인증번호: CB…"라 회수 방법이 아니다).
 - `cnsmrGhvrTips`는 공산품(0101) 원문 상당수가 띄어쓰기 없이 온다 (`ㅇ해당제품을보유하고있는소비자는…`). 줄바꿈과 `ㅇ` 글머리로 문장을 나눠 공백·쉼표를 지운 값으로 `app/consumer_tips.py`의 사전을 찾고, 모든 문장이 있으면 사전 값을 줄바꿈으로 이어 `consumer_tips`에 쓴다 (`ㅇ`은 넣지 않는다). 하나라도 없으면 원문 변환 결과 그대로다. 사전을 바꾸면 `--full`로 다시 수집해야 기존 행에 반영된다.
 - `recallEntrpsInfo`는 주소보다 전화번호·홈페이지가 많아 `address`가 아니라 `contact_text`에 넣는다. 소비자24 항목의 `address`는 null이다.
 - `source_url`은 `infoOriginInsttUrl`이다. 문서의 `infoOriginUrl`과 이름이 다르고, 건별 링크가 아니라 기관 홈페이지 주소다.

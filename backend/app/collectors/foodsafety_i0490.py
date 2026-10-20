@@ -31,6 +31,9 @@ CODE_NO_DATA = "INFO-200"  # 해당하는 데이터가 없습니다.
 
 BARCODE_RE = re.compile(r"[0-9]{13}")
 GRADE_RE = re.compile(r"([1-3])\s*등급")
+# MNFDT·DISTBTMLMT 값 맨 앞에 붙어 오는 말머리. 화면에는 항목 이름이 따로 있어 뺀다.
+MANUFACTURED_PREFIX_RE = re.compile(r"^\(제조일자\)\s*")
+EXPIRY_PREFIX_RE = re.compile(r"^\(소비기한\)\s*")
 
 
 def parse_grade(value: Any) -> int | None:
@@ -39,6 +42,14 @@ def parse_grade(value: Any) -> int | None:
         return None
     match = GRADE_RE.search(text)
     return int(match.group(1)) if match else None
+
+
+def strip_prefix(value: Any, prefix_re: re.Pattern[str]) -> str | None:
+    """값 맨 앞의 말머리와 뒤따르는 공백을 지운다. 원문은 raw에 남는다."""
+    text = clean_text(value)
+    if text is None:
+        return None
+    return prefix_re.sub("", text, count=1) or None
 
 
 def parse_barcode(value: Any) -> str | None:
@@ -63,8 +74,8 @@ def normalize_row(row: dict[str, Any]) -> RecallRecord | None:
         company_name=clean_text(row.get("BSSHNM")),
         reason=clean_text(row.get("RTRVLPRVNS")),
         grade=parse_grade(row.get("RTRVL_GRDCD_NM")),
-        manufactured_text=clean_text(row.get("MNFDT")),
-        expiry_text=clean_text(row.get("DISTBTMLMT")),
+        manufactured_text=strip_prefix(row.get("MNFDT"), MANUFACTURED_PREFIX_RE),
+        expiry_text=strip_prefix(row.get("DISTBTMLMT"), EXPIRY_PREFIX_RE),
         package_unit=clean_text(row.get("FRMLCUNIT")),
         recall_method=clean_text(row.get("RTRVLPLANDOC_RTRVLMTHD")),
         address=clean_text(row.get("ADDR")),

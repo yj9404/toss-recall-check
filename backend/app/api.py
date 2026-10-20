@@ -49,6 +49,8 @@ class Summary(BaseModel):
     registered_at: str
     source_label: str
     thumbnail: str | None
+    # 소비자24 항목에만 값이 있다.
+    model_text: str | None
 
 
 class Detail(Summary):
@@ -61,7 +63,6 @@ class Detail(Summary):
     images: list[str]
     source_url: str | None
     # 소비자24 항목에만 값이 있다.
-    model_text: str | None
     consumer_tips: str | None
     recall_period_text: str | None
     contact_text: str | None
@@ -100,6 +101,7 @@ def _summary(item: Item, settings: Settings) -> Summary:
         registered_at=_iso(item.registered_at),
         source_label=item.source_label or source_label(item.source),
         thumbnail=links[0] if links else None,
+        model_text=item.model_text,
     )
 
 
@@ -114,7 +116,6 @@ def _detail(item: Item, settings: Settings) -> Detail:
         barcode=item.barcode,
         images=_image_links(item, settings.image_hosts),
         source_url=item.source_url,
-        model_text=item.model_text,
         consumer_tips=item.consumer_tips,
         recall_period_text=item.recall_period_text,
         contact_text=item.contact_text,

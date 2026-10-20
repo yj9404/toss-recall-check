@@ -30,8 +30,11 @@ def test_normalize_valid_barcode_row():
     assert record.company_name == "(주)요즘"
     assert record.reason == "대장균군 기준 규격 부적합"
     assert record.grade == 3
-    assert record.manufactured_text == "(제조일자) 2026-10-05"
-    assert record.expiry_text == "(소비기한) 2026-10-19"
+    # 말머리는 빼고, 원문은 raw에 그대로 둔다.
+    assert record.manufactured_text == "2026-10-05"
+    assert record.expiry_text == "2026-10-19"
+    assert record.raw["MNFDT"] == "(제조일자) 2026-10-05"
+    assert record.raw["DISTBTMLMT"] == "(소비기한) 2026-10-19"
     assert record.package_unit == "100g"
     assert record.recall_method is None
     assert record.company_phone is None
@@ -64,6 +67,27 @@ def test_normalize_nonstandard_barcode_keeps_raw_text_values():
     assert record.manufactured_text == "데이터없음"
     assert record.grade == 2
     assert record.category == "food"  # 농산물도 food
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("MNFDT", "(제조일자)2026-10-05", "2026-10-05"),  # 뒤 공백 없음
+        ("MNFDT", "(제조일자)  2026-10-05 ~ 2026-10-06", "2026-10-05 ~ 2026-10-06"),
+        ("MNFDT", "(제조일자)", None),  # 말머리만 있으면 값 없음
+        ("MNFDT", "2026-10-05 (제조일자)", "2026-10-05 (제조일자)"),  # 맨 앞일 때만
+        ("MNFDT", "(소비기한) 2026-10-19", "(소비기한) 2026-10-19"),  # 필드별 말머리만
+        ("DISTBTMLMT", "(소비기한)2026-10-19", "2026-10-19"),
+        ("DISTBTMLMT", "(소비기한) 제조일로부터 1년", "제조일로부터 1년"),
+        ("DISTBTMLMT", "(소비기한) ", None),
+    ],
+)
+def test_normalize_strips_date_prefix(field, value, expected):
+    record = normalize_row({**_rows()[0], field: value})
+    assert record is not None
+    attr = "manufactured_text" if field == "MNFDT" else "expiry_text"
+    assert getattr(record, attr) == expected
+    assert record.raw[field] == value
 
 
 @pytest.mark.parametrize(
