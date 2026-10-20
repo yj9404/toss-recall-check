@@ -4,6 +4,7 @@
   --text-sub: #6b7684;
   --line: #f2f4f6;
   --card: #f9fafb;
+  --neutral-box: #f2f4f6;
   font-family: -apple-system, BlinkMacSystemFont, 'Toss Product Sans', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
@@ -212,6 +213,26 @@ body {
 
 .detail-row dd {
   margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.detail-tips {
+  margin: 8px 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--neutral-box);
+}
+
+.detail-tips h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.detail-tips p {
+  margin: 8px 0 0;
   font-size: 15px;
   line-height: 1.6;
   white-space: pre-line;

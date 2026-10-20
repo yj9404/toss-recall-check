@@ -9,20 +9,21 @@ import { GradeBadge } from '../components/GradeBadge'
 import { ListSkeleton } from '../components/ListSkeleton'
 import { useAsync } from '../hooks/useAsync'
 import { logClick, logScreen } from '../lib/analytics'
-import { formatRegisteredAt, hasValue } from '../lib/format'
+import { detailSections, type DetailRow } from '../lib/detail'
+import { hasValue } from '../lib/format'
 
-function rowsOf(d: RecallDetail): [string, string | null][] {
-  return [
-    ['회수 사유', d.reason],
-    ['회수 방법', d.recall_method],
-    ['제조일자', d.manufactured_text],
-    ['소비기한', d.expiry_text],
-    ['포장 단위', d.package_unit],
-    ['바코드', d.barcode],
-    ['업체 주소', d.address],
-    ['출처', d.source_label],
-    ['등록일', formatRegisteredAt(d.registered_at)],
-  ]
+function DetailRows({ rows }: { rows: DetailRow[] }) {
+  if (rows.length === 0) return null
+  return (
+    <dl className="detail-rows">
+      {rows.map(({ label, value }) => (
+        <div key={label} className="detail-row">
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
 }
 
 export function RecallDetailPage() {
@@ -66,6 +67,7 @@ export function RecallDetailPage() {
 
   const d = state.data
   const images = d.images.map(imageUrl).filter((u): u is string => u !== null)
+  const { main, tips, extra } = detailSections(d)
 
   return (
     <main className="page">
@@ -93,16 +95,17 @@ export function RecallDetailPage() {
         </div>
       )}
 
-      <dl className="detail-rows">
-        {rowsOf(d)
-          .filter(([, value]) => hasValue(value))
-          .map(([label, value]) => (
-            <div key={label} className="detail-row">
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-      </dl>
+      <DetailRows rows={main} />
+
+      {tips && (
+        // 행동 안내라 경고처럼 보이지 않게 배경색만 다른 중립 카드로 둔다
+        <section className="detail-tips" aria-labelledby="detail-tips-title">
+          <h2 id="detail-tips-title">이렇게 하세요</h2>
+          <p>{tips}</p>
+        </section>
+      )}
+
+      <DetailRows rows={extra} />
 
       <div className="section">
         <Button display="full" variant="weak" size="large" loading={sharing} onClick={() => share(d)}>

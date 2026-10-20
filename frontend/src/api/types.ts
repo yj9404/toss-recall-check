@@ -27,6 +27,11 @@ export interface RecallDetail extends RecallSummary {
   barcode: string | null
   images: string[]
   source_url: string | null
+  // 소비자24 항목에만 값이 있다
+  model_text: string | null
+  consumer_tips: string | null
+  recall_period_text: string | null
+  contact_text: string | null
   last_seen_at: string
 }
 

@@ -8,7 +8,7 @@
 ```
 src/
   api/        types.ts(응답 타입) · client.ts(fetch 호출은 여기 한 곳, 실패 시 ApiError에 상태 코드)
-  lib/        format(등록일·빈 값) · barcode · pagination · ads(광고 ID) · analytics · anonymousKey
+  lib/        format(등록일·빈 값) · detail(상세 항목 순서) · barcode · pagination · ads(광고 ID) · analytics · anonymousKey
   hooks/      useAsync · useRecallList(20건씩 이어 붙이기) · useTossBanner(광고 초기화 1회, 화면 이탈 시 destroy)
   components/ RecallCard · BannerAd · ErrorView · ListSkeleton · Disclaimer
   pages/      HomePage(/) · RecallDetailPage(/recall/:id) · BarcodePage(/barcode)
