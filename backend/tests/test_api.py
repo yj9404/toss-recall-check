@@ -181,7 +181,8 @@ def test_consumer24_detail_fields(make_client):
     assert product["category_label"] == "공산품"
     assert product["source_label"] == "국가기술표준원"  # 건별 infoOriginInstt
     assert product["model_text"] == "핑크풋 슬라임"
-    assert product["consumer_tips"].startswith("ㅇ 해당 제품을 보유하고 있는 소비자는")
+    # 사전에 있는 문장이라 "ㅇ" 글머리 없이 사전 값으로 바뀐다
+    assert product["consumer_tips"].startswith("해당 제품을 보유하고 있는 소비자는")
     assert product["recall_period_text"] is None
     assert product["address"] is None
     assert product["contact_text"] is None

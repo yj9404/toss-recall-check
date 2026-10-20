@@ -36,6 +36,7 @@ from app.collectors.base import (
     clean_text,
     parse_image_urls,
 )
+from app.consumer_tips import SPACED_TIPS
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +73,9 @@ _ATTRS = r"""(?:\s+[a-zA-Z][\w:-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>]+))?)*\s
 _LINE_BREAK_RE = re.compile(rf"<br{_ATTRS}|</(?:p|div|li|tr)\s*>", re.IGNORECASE)
 _TAG_RE = re.compile(rf"</?(?:{_HTML_TAGS}){_ATTRS}", re.IGNORECASE)
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
+# cnsmrGhvrTips 문장 구분: 줄바꿈과 "ㅇ" 글머리(줄 시작이든 문장 사이에 붙어 오든)
+_TIP_SPLIT_RE = re.compile(r"[\nㅇ]")
+_TIP_KEY_DROP_RE = re.compile(r"[\s,]")
 _BARCODE_RE = re.compile(r"(?<![0-9])[0-9]{13}(?![0-9])")
 _YYYYMMDD_RE = re.compile(r"[0-9]{8}")
 
@@ -86,6 +90,22 @@ def html_to_text(value: Any) -> str | None:
     text = html.unescape(text).replace("\xa0", " ")
     text = "\n".join(line.strip() for line in text.splitlines())
     return _BLANK_LINES_RE.sub("\n\n", text).strip() or None
+
+
+def consumer_tips(value: Any) -> str | None:
+    """cnsmrGhvrTips 표시값. 띄어쓰기 없이 오는 원문이 많아 문장 단위로 사전을 찾아 보정한다.
+
+    모든 문장이 SPACED_TIPS에 있으면 사전 값을 줄바꿈으로 잇고("ㅇ" 글머리는 넣지 않는다),
+    하나라도 없으면 html_to_text 결과를 그대로 쓴다. 원문은 raw에 남는다.
+    """
+    text = html_to_text(value)
+    if text is None:
+        return None
+    sentences = [s for s in _TIP_SPLIT_RE.split(text) if s.strip()]
+    spaced = [SPACED_TIPS.get(_TIP_KEY_DROP_RE.sub("", s)) for s in sentences]
+    if not spaced or any(s is None for s in spaced):
+        return text
+    return "\n".join(s for s in spaced if s is not None)
 
 
 def parse_barcode(value: Any) -> str | None:
@@ -190,7 +210,7 @@ def normalize_item(item: dict[str, str], menu_id: str) -> RecallRecord | None:
         source_url=clean_text(item.get("infoOriginInsttUrl")),
         source_label=html_to_text(item.get("infoOriginInstt")) or DEFAULT_SOURCE_LABEL,
         model_text=html_to_text(item.get("modlNmInfo")),
-        consumer_tips=html_to_text(item.get("cnsmrGhvrTips")),
+        consumer_tips=consumer_tips(item.get("cnsmrGhvrTips")),
         recall_period_text=recall_period(item.get("recallBgnde"), item.get("recallEndde")),
         registered_at=registered_at,
         raw=item,  # content 원문 전체 (stdBrcd 원문, hrmflGrad, etcInfo 등)

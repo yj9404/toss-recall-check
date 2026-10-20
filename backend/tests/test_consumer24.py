@@ -12,6 +12,7 @@ from app.collectors.base import KST, CollectError
 from app.collectors.consumer24 import (
     DEFAULT_SOURCE_LABEL,
     Consumer24Collector,
+    consumer_tips,
     html_to_text,
     normalize_item,
     parse_barcode,
@@ -133,10 +134,12 @@ def test_normalize_consumer_product_item():
     assert record.source_url == "http://www.kats.go.kr"
     assert record.source_label == "국가기술표준원"
     assert record.model_text == "핑크풋 슬라임"
+    # 사전에 있는 문장이라 "ㅇ" 글머리 없이 사전 값으로 바뀐다. 원문은 raw에 그대로 있다.
     assert record.consumer_tips == (
-        "ㅇ 해당 제품을 보유하고 있는 소비자는 즉시 사용을 중지할 것\n"
-        "ㅇ 문의처에 연락·방문 등을 통하여 수리, 교환, 환불 등 조치를 받을 것"
+        "해당 제품을 보유하고 있는 소비자는 즉시 사용을 중지할 것\n"
+        "문의처에 연락·방문 등을 통하여 수리, 교환, 환불 등 조치를 받을 것"
     )
+    assert record.raw["cnsmrGhvrTips"].startswith("ㅇ 해당 제품을 보유하고")
     assert record.recall_period_text is None
     assert record.raw == item
     assert record.raw["stdBrcd"] == "-"
@@ -299,6 +302,92 @@ def test_recall_method_drops_certification_numbers(value, expected):
 )
 def test_recall_period(begin, end, expected):
     assert recall_period(begin, end) == expected
+
+
+TIP_STOP = "해당 제품을 보유하고 있는 소비자는 즉시 사용을 중지할 것"
+TIP_REPAIR = "문의처에 연락·방문 등을 통하여 수리, 교환, 환불 등 조치를 받을 것"
+TIP_NEW_PRODUCT = "문의처 또는 구입처 등에 연락·방문하여 새 제품으로 교환, 환불 등 조치를 받을 것"
+TIP_REFUND = "문의처에 연락·방문 등을 통하여 환불 등 조치를 받을 것"
+TIP_FIRE = "통상 사용 시 과도한 온도 상승으로 인한 화재의 위험성이 있음"
+TIP_BURN = "통상 사용 시 신체에 접촉될 경우 화상의 위험이 있음"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # 2026-10-20 운영 DB에서 띄어쓰기 없이 온 공산품(0101) 원문 8종 (건수 순)
+        (
+            "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\n"
+            "ㅇ문의처에연락·방문등을통하여수리교환환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_REPAIR}",
+        ),
+        (
+            "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\r\n"
+            "ㅇ문의처에연락·방문등을통하여수리,교환,환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_REPAIR}",
+        ),
+        (
+            "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\n"
+            "ㅇ문의처또는구입처등에연락·방문하여새제품으로교환환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_NEW_PRODUCT}",
+        ),
+        (
+            # 줄바꿈 없이 "ㅇ" 글머리로만 이어진 경우
+            "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것"
+            "ㅇ문의처에연락·방문등을통하여수리교환환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_REPAIR}",
+        ),
+        (
+            "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\n"
+            "ㅇ문의처에연락·방문등을통하여 환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_REFUND}",
+        ),
+        ("ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것", TIP_STOP),
+        (
+            "ㅇ통상사용시과도한온도상승으로인한화재의위험성이있음\n"
+            "ㅇ통상사용시신체에접촉될경우화상의위험이있음",
+            f"{TIP_FIRE}\n{TIP_BURN}",
+        ),
+        (
+            # 일부만 띄어 쓴 원문
+            "ㅇ해당제품을 보유하고 있는소비자는즉시사용을중지할것\n"
+            "ㅇ문의처에연락·방문등을통하여수리교환환불등조치를받을것",
+            f"{TIP_STOP}\n{TIP_REPAIR}",
+        ),
+    ],
+)
+def test_consumer_tips_respaces_known_sentences(raw, expected):
+    assert consumer_tips(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        # 사전에 없는 문장이 하나라도 섞이면 보정하지 않는다
+        "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\nㅇ가까운서비스센터에방문할것",
+        "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것ㅇ제조사홈페이지를확인할것",
+        "스피커 사용을 즉시 중단하시고, 전원 플러그를 뽑아 주십시오.",
+    ],
+)
+def test_consumer_tips_keeps_text_when_any_sentence_is_unknown(raw):
+    assert consumer_tips(raw) == html_to_text(raw)
+
+
+@pytest.mark.parametrize("raw", [None, "", "  "])
+def test_consumer_tips_empty(raw):
+    assert consumer_tips(raw) is None
+
+
+def test_normalize_respaces_tips_but_keeps_raw():
+    item = _items("consumer24_0101.xml")[0]
+    no_space = (
+        "ㅇ해당제품을보유하고있는소비자는즉시사용을중지할것\n"
+        "ㅇ문의처에연락·방문등을통하여수리교환환불등조치를받을것"
+    )
+    record = normalize_item({**item, "cnsmrGhvrTips": no_space}, "0101")
+    assert record is not None
+    assert record.consumer_tips == f"{TIP_STOP}\n{TIP_REPAIR}"
+    assert record.raw["cnsmrGhvrTips"] == no_space
 
 
 def test_record_is_json_serializable():

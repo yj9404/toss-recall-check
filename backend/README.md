@@ -170,6 +170,7 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 - `registered_at`은 `recallPublictBgnde`(yyyyMMdd)의 Asia/Seoul 자정이다. 공표일이 없는 항목은 건너뛴다.
 - category와 source는 항목의 `cntntsId`가 아니라 요청한 메뉴로 정한다. 해외리콜(0501)로 요청하면 하위 분류 `0502`·`0503`·`0504`가 섞여 온다 (180일치 중 약 2/3). 항목의 `cntntsId`는 `raw`에 남는다.
 - `recallProcssInfo`가 "인증번호"로 시작하면 `recall_method`에 넣지 않는다 (공산품은 대부분 "인증번호: CB…"라 회수 방법이 아니다).
+- `cnsmrGhvrTips`는 공산품(0101) 원문 상당수가 띄어쓰기 없이 온다 (`ㅇ해당제품을보유하고있는소비자는…`). 줄바꿈과 `ㅇ` 글머리로 문장을 나눠 공백·쉼표를 지운 값으로 `app/consumer_tips.py`의 사전을 찾고, 모든 문장이 있으면 사전 값을 줄바꿈으로 이어 `consumer_tips`에 쓴다 (`ㅇ`은 넣지 않는다). 하나라도 없으면 원문 변환 결과 그대로다. 사전을 바꾸면 `--full`로 다시 수집해야 기존 행에 반영된다.
 - `recallEntrpsInfo`는 주소보다 전화번호·홈페이지가 많아 `address`가 아니라 `contact_text`에 넣는다. 소비자24 항목의 `address`는 null이다.
 - `source_url`은 `infoOriginInsttUrl`이다. 문서의 `infoOriginUrl`과 이름이 다르고, 건별 링크가 아니라 기관 홈페이지 주소다.
 - `hrmflGrad`(위해성 등급)는 형식이 정해지지 않아 `grade`에 넣지 않는다. 지금까지 받은 데이터에서는 모두 비어 있다.
