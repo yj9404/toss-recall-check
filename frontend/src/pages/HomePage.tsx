@@ -71,6 +71,14 @@ export function HomePage() {
   }
   const selectedTab = tabs.findIndex((c) => c.code === category) + 1
 
+  // X 버튼은 입력만 비우지 않고 검색도 풀어 전체 목록으로 돌아간다.
+  // 입력이 빈 채 직전 검색 결과가 남으면 "제품이 없는" 것처럼 보이기 때문이다.
+  function clearSearch() {
+    setInput('')
+    logSearchRef.current = null
+    setQuery('')
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault()
     const next = input.trim()
@@ -103,7 +111,7 @@ export function HomePage() {
             placeholder="제품명이나 업체명을 입력해요"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onDeleteClick={() => setInput('')}
+            onDeleteClick={clearSearch}
             enterKeyHint="search"
           />
         </div>
