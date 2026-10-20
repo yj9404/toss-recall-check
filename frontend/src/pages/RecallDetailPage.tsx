@@ -41,7 +41,7 @@ export function RecallDetailPage() {
     setSharing(true)
     logClick('share_click', { id: d.id })
     try {
-      const link = await Share.createLink({ path: `intoss://recall-check/recall/${d.id}` })
+      const link = await Share.createLink({ path: `intoss://recall/recall/${d.id}` })
       await Share.sendMessage({ message: `[리콜체크] ${d.product_name} 회수 정보\n${link}` })
     } catch (e) {
       console.warn('공유하지 못했어요', e)

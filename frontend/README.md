@@ -14,7 +14,9 @@ src/
   pages/      HomePage(/) · RecallDetailPage(/recall/:id) · BarcodePage(/barcode)
 ```
 
-경로는 `intoss://recall-check/...` 딥링크와 그대로 매핑돼요 (`/`, `/recall/:id`, `/barcode`).
+경로는 `intoss://recall/...` 딥링크와 그대로 매핑돼요 (`/`, `/recall/:id`, `/barcode`). 상세 공유 링크는 `intoss://recall/recall/{id}`예요.
+
+`appName`(`recall`)은 콘솔에 등록된 값이라 바꿀 수 없어요. `apps-in-toss.config.ts`, 딥링크, 번들 파일명이 모두 이 값을 따라요.
 
 ## 환경변수
 
@@ -36,7 +38,7 @@ npm run dev          # 개발 서버 (AIT Devtools 패널 포함)
 npm run typecheck    # tsc -b
 npm run lint
 npm test             # vitest
-npm run build        # 테스트 광고 ID로 번들 생성 → recall-check.ait
+npm run build        # 테스트 광고 ID로 번들 생성 → recall.ait
 npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제출용)
 ```
 
@@ -51,9 +53,9 @@ npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제�
 
 ## 토스 앱에서 테스트하기 (콘솔 QR)
 
-1. `npm run build` → 프로젝트 폴더(`package.json` 옆)에 `recall-check.ait`가 생겨요. (`ait build` 단독 실행은 `dist/`가 없어 실패해요)
-2. 앱인토스 콘솔에서 미니앱 `recall-check`를 선택해 **번들 업로드(테스트)** 에 `.ait` 파일을 올려요. 업로드가 끝나면 콘솔에 테스트용 QR이 나와요. (Claude Code에서는 `/ait:test-on-device`가 같은 순서를 진행해요)
-3. 토스 앱으로 QR을 스캔해 열어요. 테스트 스킴은 `intoss-private://recall-check?_deploymentId=...`예요. 공유 링크의 `intoss://`는 출시 후에만 열려요.
+1. `npm run build` → 프로젝트 폴더(`package.json` 옆)에 `recall.ait`가 생겨요. (`ait build` 단독 실행은 `dist/`가 없어 실패해요)
+2. 앱인토스 콘솔에서 미니앱 `recall`을 선택해 **번들 업로드(테스트)** 에 `.ait` 파일을 올려요. 업로드가 끝나면 콘솔에 테스트용 QR이 나와요. (Claude Code에서는 `/ait:test-on-device`가 같은 순서를 진행해요)
+3. 토스 앱으로 QR을 스캔해 열어요. 테스트 스킴은 `intoss-private://recall?_deploymentId=...`예요. 공유 링크의 `intoss://`는 출시 후에만 열려요.
 4. 광고는 `build`(테스트 ID)로 노출 여부를, 검수 제출 전에는 `build:live`로 만든 번들로 실제 광고 그룹 ID가 동작하는지 한 번 더 확인해요. 실제 광고 ID로 개발 중에 테스트하면 정책 위반이 될 수 있어요.
 
 검수 요청과 출시는 콘솔 또는 `/ait:launch`에서 직접 진행해요.
