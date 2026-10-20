@@ -18,6 +18,10 @@ CATEGORIES: dict[str, str] = {
 
 DEFAULT_ENABLED_CATEGORIES = tuple(CATEGORIES)
 
+# category 없이 조회(전체·전체 검색)할 때 빼는 카테고리. 해외리콜은 국내 유통과 무관한 건이 많고
+# 건수가 다른 카테고리를 모두 합친 것보다 많아 전체 목록을 덮는다. category=overseas로는 조회된다.
+EXCLUDED_FROM_ALL: frozenset[str] = frozenset({"overseas"})
+
 # 레코드에 source_label이 없을 때 쓰는 출처별 기본 라벨.
 SOURCE_LABELS: dict[str, str] = {
     "foodsafety_i0490": "식품의약품안전처 식품안전나라",

@@ -13,7 +13,7 @@ from app.collect import SourceResult, run_collection
 from app.collectors import Collector, select_collectors
 from app.collectors.base import KST
 from app.config import Settings
-from app.labels import category_label, source_label
+from app.labels import EXCLUDED_FROM_ALL, category_label, source_label
 from app.snapshot import Item, Snapshot, load_snapshot
 
 log = logging.getLogger(__name__)
@@ -158,7 +158,8 @@ def list_recalls(
     settings = _settings(request)
     if category is not None and category not in settings.enabled_category_list:
         raise HTTPException(400, "unknown category")
-    matched = _snapshot(request).search(category=category, q=q)
+    # category 없이(전체·전체 검색) 조회하면 해외리콜을 뺀다. 바코드 조회는 해외도 포함한다.
+    matched = _snapshot(request).search(category=category, q=q, exclude=EXCLUDED_FROM_ALL)
     return RecallList(
         items=[_summary(i, settings) for i in matched[offset : offset + limit]],
         total=len(matched),

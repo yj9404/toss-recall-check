@@ -130,9 +130,9 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 | 경로 | 응답 |
 |---|---|
 | `GET /api/v1/categories` | `[{code, label, count, latest_registered_at}]` |
-| `GET /api/v1/recalls?category=&q=&limit=20&offset=0` | `{items: [Summary], total}`. 등록일 내림차순. `q`는 공백으로 나눈 단어 AND 검색 (제품명·업체명, NFC·대소문자·공백 무시). `limit` 1~100 |
+| `GET /api/v1/recalls?category=&q=&limit=20&offset=0` | `{items: [Summary], total}`. 등록일 내림차순. `q`는 공백으로 나눈 단어 AND 검색 (제품명·업체명, NFC·대소문자·공백 무시). `limit` 1~100. **`category`가 없으면(전체·전체 검색) `overseas`(해외)를 뺀다.** 해외는 `category=overseas`로만 나온다 |
 | `GET /api/v1/recalls/{id}` | Detail |
-| `GET /api/v1/recalls/barcode/{barcode}` | `{found, items: [Summary]}`. 13자리 숫자가 아니면 400. **`found: false`는 "회수 목록에 없다"는 뜻일 뿐 안전하다는 뜻이 아니다.** |
+| `GET /api/v1/recalls/barcode/{barcode}` | `{found, items: [Summary]}`. 13자리 숫자가 아니면 400. 해외도 포함한다. **`found: false`는 "회수 목록에 없다"는 뜻일 뿐 안전하다는 뜻이 아니다.** |
 | `GET /api/v1/image?u=<원본 URL>` | 이미지 프록시. 허용목록 밖이면 400, 원본이 빈 본문(0바이트)이면 404, 원본 실패·이미지 아님 502, 시간 초과 504 |
 | `GET /healthz` | `{status, snapshot: {count, loaded_at}, sources: [{source, last_success_at, last_error_at, last_row_count, skipped_count}]}`. 메모리 값이며 소스별 값은 이 프로세스가 수집을 한 번 끝낸 뒤부터 채워진다. `skipped_count`는 마지막 성공 수집에서 키·공표일이 없어 받지 않은 건수 |
 | `GET /internal/health/db` | 헤더 `X-Admin-Token` 필요. `SELECT 1` 성공 시 `{db: "ok"}`, 실패 시 503 |

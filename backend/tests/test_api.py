@@ -57,6 +57,52 @@ def test_recalls_search_and_pagination(make_client):
     assert client.get("/api/v1/recalls", params={"limit": 101}).status_code == 422
 
 
+@pytest.fixture
+def overseas_client(make_client):
+    now = datetime.now(KST)
+    rows = [
+        make_row(1, category="food", product_name="우유", barcode="8800000000001"),
+        make_row(2, category="vehicle", product_name="우유 운반차"),
+        make_row(3, category="overseas", product_name="Milk 우유", barcode="8800000000003"),
+        make_row(4, category="overseas", product_name="Toy", registered_at=now),
+    ]
+    return make_client(rows)
+
+
+def test_all_recalls_exclude_overseas(overseas_client):
+    body = overseas_client.get("/api/v1/recalls").json()
+    assert body["total"] == 2
+    assert {i["category"] for i in body["items"]} == {"food", "vehicle"}
+
+
+def test_overseas_only_when_requested(overseas_client):
+    body = overseas_client.get("/api/v1/recalls", params={"category": "overseas"}).json()
+    assert body["total"] == 2
+    assert [i["id"] for i in body["items"]] == [4, 3]
+
+
+def test_search_without_category_excludes_overseas(overseas_client):
+    body = overseas_client.get("/api/v1/recalls", params={"q": "우유"}).json()
+    assert sorted(i["id"] for i in body["items"]) == [1, 2]
+    assert body["total"] == 2
+
+    body = overseas_client.get(
+        "/api/v1/recalls", params={"q": "우유", "category": "overseas"}
+    ).json()
+    assert [i["id"] for i in body["items"]] == [3]
+
+
+def test_barcode_lookup_includes_overseas(overseas_client):
+    found = overseas_client.get("/api/v1/recalls/barcode/8800000000003").json()
+    assert found["found"] is True
+    assert [(i["id"], i["category"]) for i in found["items"]] == [(3, "overseas")]
+
+
+def test_categories_still_list_overseas(overseas_client):
+    codes = [c["code"] for c in overseas_client.get("/api/v1/categories").json()]
+    assert "overseas" in codes
+
+
 def test_recalls_category_filter(make_client):
     rows = [make_row(1, category="food"), make_row(2, category="cosmetic")]
     client = make_client(rows)

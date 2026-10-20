@@ -110,13 +110,19 @@ class Snapshot:
     def __len__(self) -> int:
         return len(self.items)
 
-    def search(self, category: str | None = None, q: str | None = None) -> list[Item]:
+    def search(
+        self,
+        category: str | None = None,
+        q: str | None = None,
+        exclude: frozenset[str] = frozenset(),
+    ) -> list[Item]:
+        """category가 있으면 그 카테고리만, 없으면 exclude를 뺀 전체에서 찾는다."""
         terms = [normalize_text(t) for t in unicodedata.normalize("NFC", q or "").split()]
         terms = [t for t in terms if t]
         return [
             item
             for item in self.items
-            if (category is None or item.category == category)
+            if (item.category == category if category is not None else item.category not in exclude)
             and all(t in item.search_key for t in terms)
         ]
 
