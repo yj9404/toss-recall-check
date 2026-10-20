@@ -8,6 +8,7 @@ import { ListSkeleton } from '../components/ListSkeleton'
 import { RecallCard } from '../components/RecallCard'
 import { BARCODE_LENGTH, isValidBarcode, sanitizeBarcode } from '../lib/barcode'
 import { logClick, logScreen } from '../lib/analytics'
+import { pickPhoto, type PhotoSource } from '../lib/barcodePhoto'
 
 type Result =
   | { status: 'idle' }
@@ -15,10 +16,23 @@ type Result =
   | { status: 'error' }
   | { status: 'done'; data: BarcodeResult }
 
+type Scan =
+  | { status: 'idle' }
+  | { status: 'picking' | 'decoding'; source: PhotoSource }
+  | { status: 'denied' }
+  | { status: 'failed' }
+
+const SCAN_MESSAGE = {
+  denied: '권한이 없어 사진을 쓸 수 없어요. 번호를 직접 입력해 주세요.',
+  failed: '바코드를 읽지 못했어요. 밝은 곳에서 바코드가 화면을 채우게 다시 찍거나 번호를 직접 입력해 주세요.',
+} as const
+
 export function BarcodePage() {
   const navigate = useNavigate()
   const [barcode, setBarcode] = useState('')
   const [result, setResult] = useState<Result>({ status: 'idle' })
+  const [scan, setScan] = useState<Scan>({ status: 'idle' })
+  const scanBusy = scan.status === 'picking' || scan.status === 'decoding'
   const ctrlRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -28,20 +42,52 @@ export function BarcodePage() {
 
   const valid = isValidBarcode(barcode)
 
-  async function check(e?: FormEvent) {
-    e?.preventDefault()
-    if (!valid || result.status === 'loading') return
+  async function check(value = barcode) {
+    if (!isValidBarcode(value)) return
     ctrlRef.current?.abort()
     const ctrl = (ctrlRef.current = new AbortController())
     setResult({ status: 'loading' })
     try {
-      const data = await fetchBarcode(barcode, ctrl.signal)
+      const data = await fetchBarcode(value, ctrl.signal)
       if (ctrl.signal.aborted) return
       logClick('barcode_check_click', { found: data.found })
       setResult({ status: 'done', data })
     } catch {
       if (!ctrl.signal.aborted) setResult({ status: 'error' })
     }
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (result.status !== 'loading') check()
+  }
+
+  // 사진은 기기 안에서만 판독한다. 이미지는 서버로 보내지 않고, 읽은 번호는 직접 입력과 같은 조회에만 쓴다(로그에 남기지 않음).
+  async function scanPhoto(source: PhotoSource) {
+    if (scanBusy) return
+    logClick('barcode_scan_click', { source })
+    setScan({ status: 'picking', source })
+    const photo = await pickPhoto(source)
+    if (photo.status !== 'ok') {
+      setScan({ status: photo.status === 'denied' ? 'denied' : 'idle' })
+      return
+    }
+    setScan({ status: 'decoding', source })
+    let code: string | null = null
+    try {
+      const { decodeEan13FromDataUri } = await import('../lib/barcodeScan')
+      code = await decodeEan13FromDataUri(photo.dataUri)
+    } catch {
+      code = null
+    }
+    logClick('barcode_scan_result', { success: code !== null })
+    if (!code) {
+      setScan({ status: 'failed' })
+      return
+    }
+    setScan({ status: 'idle' })
+    setBarcode(code)
+    check(code)
   }
 
   return (
@@ -55,7 +101,33 @@ export function BarcodePage() {
         }
       />
 
-      <form className="barcode-form" onSubmit={check}>
+      <form className="barcode-form" onSubmit={submit}>
+        <div className="barcode-scan">
+          {(['camera', 'album'] as const).map((source) => (
+            <Button
+              key={source}
+              type="button"
+              variant="weak"
+              size="large"
+              display="full"
+              loading={scanBusy && scan.source === source}
+              disabled={scanBusy}
+              onClick={() => scanPhoto(source)}
+            >
+              {source === 'camera' ? '카메라로 찍기' : '앨범에서 고르기'}
+            </Button>
+          ))}
+        </div>
+        {scan.status === 'decoding' && (
+          <p className="barcode-scan__message" role="status">
+            사진에서 바코드를 찾고 있어요
+          </p>
+        )}
+        {(scan.status === 'denied' || scan.status === 'failed') && (
+          <p className="barcode-scan__message" role="alert">
+            {SCAN_MESSAGE[scan.status]}
+          </p>
+        )}
         <TextField
           variant="box"
           label="바코드 번호"
@@ -67,6 +139,7 @@ export function BarcodePage() {
           onChange={(e) => {
             setBarcode(sanitizeBarcode(e.target.value))
             setResult({ status: 'idle' })
+            if (!scanBusy) setScan({ status: 'idle' })
           }}
           help={
             valid ? undefined : `${BARCODE_LENGTH}자리 숫자를 입력해 주세요. (${barcode.length}/${BARCODE_LENGTH})`

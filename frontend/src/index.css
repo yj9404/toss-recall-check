@@ -180,6 +180,20 @@ body {
   padding: 8px 20px 16px;
 }
 
+.barcode-scan {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.barcode-scan__message {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
 .inline-error {
   margin: 8px 20px 0;
   color: var(--text-sub);
