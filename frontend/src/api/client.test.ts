@@ -1,5 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchBarcode, fetchRecall, fetchRecalls, imageUrl, isNotFound } from './client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  ApiError,
+  fetchBarcode,
+  fetchCategories,
+  fetchRecall,
+  fetchRecalls,
+  imageUrl,
+  isNotFound,
+  REQUEST_TIMEOUT_MS,
+} from './client'
 
 function mockFetch(impl: () => Promise<Response> | Response) {
   const fn = vi.fn(async () => impl())
@@ -43,6 +52,53 @@ describe('API 클라이언트 에러 처리', () => {
     mockFetch(() => Promise.reject(new DOMException('aborted', 'AbortError')))
     const err = await fetchRecall('1').catch((e) => e)
     expect(err).not.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('타임아웃', () => {
+  // 응답하지 않다가 signal이 끊기면 AbortError로 끝나는 fetch
+  function hangingFetch() {
+    const fn = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        }),
+    )
+    vi.stubGlobal('fetch', fn)
+    return fn
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it(`${REQUEST_TIMEOUT_MS}ms 안에 응답이 없으면 요청을 끊고 상태 코드 0의 ApiError로 던진다`, async () => {
+    const fn = hangingFetch()
+    const pending = fetchRecall('1').catch((e) => e)
+
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1)
+    expect((fn.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1)
+    const err = await pending
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(0)
+    expect((fn.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true)
+  })
+
+  it('호출한 쪽이 취소하면 타임아웃 전이라도 AbortError 그대로 던진다', async () => {
+    hangingFetch()
+    const caller = new AbortController()
+    const pending = fetchRecalls({}, caller.signal).catch((e) => e)
+    caller.abort()
+    const err = await pending
+    expect(err).not.toBeInstanceOf(ApiError)
+    expect(err.name).toBe('AbortError')
+  })
+
+  it('응답을 받으면 타이머를 남기지 않는다', async () => {
+    mockFetch(() => json([]))
+    await fetchCategories()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 

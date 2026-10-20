@@ -20,7 +20,10 @@ const item = (id: string): RecallSummary => ({
   thumbnail: null,
 })
 
-beforeEach(() => fetchRecalls.mockReset())
+// 블록으로 감싼다: beforeEach가 함수를 돌려주면 vitest가 테스트 뒤 정리 함수로 호출한다
+beforeEach(() => {
+  fetchRecalls.mockReset()
+})
 
 describe('useRecallList 복원', () => {
   it('복원된 목록으로 시작하고 다시 불러오지 않는다', async () => {
@@ -58,6 +61,13 @@ describe('useRecallList 복원', () => {
     rerender({ c: 'cosmetic' })
     await waitFor(() => expect(result.current.items.map((i) => i.id)).toEqual(['9']))
     expect(fetchRecalls).toHaveBeenCalledWith({ category: 'cosmetic', q: '', offset: 0 }, expect.any(AbortSignal))
+  })
+
+  it('첫 요청이 실패(타임아웃 포함)하면 전체 오류 화면 상태가 된다', async () => {
+    fetchRecalls.mockRejectedValue(new Error('응답 시간 초과'))
+    const { result } = renderHook(() => useRecallList('', ''))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current.failedFirst).toBe(true)
   })
 
   it('복원이 없으면 첫 페이지를 불러온다', async () => {
