@@ -18,6 +18,13 @@ src/
 
 `appName`(`recall`)은 콘솔에 등록된 값이라 바꿀 수 없어요. `apps-in-toss.config.ts`, 딥링크, 번들 파일명이 모두 이 값을 따라요.
 
+## 앱 아이콘·이름·브랜드 색
+
+**콘솔 앱 로고와 `brand.icon`은 같은 이미지여야 해요.** 원본은 `assets/app-icon.png`(600×600 PNG, 모서리 둥글리기 없음) 하나예요. SDK 3.x의 `apps-in-toss.config.ts`에는 `brand.icon`·`brand.displayName` 항목이 없어서(`primaryColor`만 받음) 내비게이션 바의 아이콘과 이름은 콘솔 **앱 정보**의 앱 로고·국문 앱 이름을 그대로 보여 줘요. 아이콘이나 이름을 바꾸려면 이 파일을 고친 뒤 콘솔에도 같은 이미지·이름을 올려요.
+
+- `index.html`의 favicon도 같은 파일을 써요(로컬 개발용).
+- `brand.primaryColor`(`#3182F6`)는 아이콘 배경색이에요. 토스 진입점, 브리지 화면, TDS 버튼 색에 쓰이고, 명도 대비가 부족하면 플랫폼이 자동으로 보정해요.
+
 ## 환경변수
 
 `.env.example`을 복사해서 써요. `.env*`는 커밋하지 않아요.
