@@ -60,6 +60,25 @@ npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제�
 
 검수 요청과 출시는 콘솔 또는 `/ait:launch`에서 직접 진행해요.
 
+## 분석 이벤트
+
+`lib/analytics.ts`의 `logScreen`/`logClick`이 SDK `Analytics.screen`/`Analytics.click`으로 보내요. `log_name`이 콘솔 **분석 > 이벤트**에 보이는 이름이에요. 토스 앱 밖에서는 보내지 않고, 실패해도 화면 동작에 영향을 주지 않아요.
+
+| 종류 | `log_name` | 보내는 때 | 파라미터 |
+| --- | --- | --- | --- |
+| screen | `home_screen` | 홈에 들어올 때(상세·바코드에서 돌아올 때 포함) | 없음 |
+| screen | `recall_detail_screen` | 상세 정보를 불러왔을 때 | `id`, `category` |
+| screen | `barcode_screen` | 바코드 화면에 들어올 때 | 없음 |
+| click | `search_submit_click` | 검색 버튼으로 시작한 조회의 첫 결과를 받았을 때 | `category`(전체는 `all`), `query_length`, `result_count` |
+| click | `category_tab_click` | 카테고리 탭을 바꿀 때 | `category`(전체는 `all`) |
+| click | `recall_item_click` | 목록 카드를 누를 때 | `id`, `category`, `position`(1부터) |
+| click | `share_click` | 상세에서 공유하기를 누를 때 | `id` |
+| click | `barcode_check_click` | 바코드 조회 결과를 받았을 때 | `found` |
+
+검색어 원문과 바코드 번호는 보내지 않아요(길이·결과 수·발견 여부만).
+
+**콘솔 전환 지표는 `recall_detail_screen`으로 등록해요.** 콘솔 **핵심 지표 > 전환 지표 > 직접 조합하기**에서 이 이벤트를 고르면 돼요. 회수 정보를 실제로 열어 본 순간이 이 미니앱의 핵심 목표 행동이라서예요. 지표를 바꾸면 다음 날부터 적용돼요.
+
 ## 동작 규칙 요약
 
 - 라이트 모드 전용, 핀치 줌 비활성화(viewport meta), Safe Area 반영.
