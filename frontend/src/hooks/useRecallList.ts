@@ -104,5 +104,6 @@ ${q}`
 
   const retry = state.failedFirst ? loadFirst : loadMore
 
-  return { ...state, hasMore: state.items.length < state.total, loadMore, retry }
+  // reload: 같은 조건으로 처음부터 다시 불러온다 (같은 검색어로 다시 검색할 때)
+  return { ...state, hasMore: state.items.length < state.total, loadMore, retry, reload: loadFirst }
 }

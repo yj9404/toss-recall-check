@@ -70,6 +70,17 @@ describe('useRecallList 복원', () => {
     expect(result.current.failedFirst).toBe(true)
   })
 
+  it('reload는 같은 조건으로 처음부터 다시 불러오고 이어 붙이지 않는다', async () => {
+    fetchRecalls.mockResolvedValue({ items: [item('1'), item('2')], total: 40 })
+    const { result } = renderHook(() => useRecallList('', '완구'))
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    act(() => result.current.reload())
+    await waitFor(() => expect(result.current.status).toBe('idle'))
+    expect(fetchRecalls).toHaveBeenLastCalledWith({ category: '', q: '완구', offset: 0 }, expect.any(AbortSignal))
+    expect(result.current.items.map((i) => i.id)).toEqual(['1', '2'])
+  })
+
   it('복원이 없으면 첫 페이지를 불러온다', async () => {
     fetchRecalls.mockResolvedValue({ items: [item('1')], total: 1 })
     const { result } = renderHook(() => useRecallList('', ''))

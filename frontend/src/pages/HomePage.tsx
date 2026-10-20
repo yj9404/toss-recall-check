@@ -11,6 +11,7 @@ import { useRecallList } from '../hooks/useRecallList'
 import { homeAdGroupId } from '../lib/ads'
 import { logClick, logScreen } from '../lib/analytics'
 import { OVERSEAS, orderCategories } from '../lib/categories'
+import { disarmUntypedButtons } from '../lib/forms'
 import { getHomeSnapshot, isOverseasNoticeSeen, markOverseasNoticeSeen, saveHomeSnapshot } from '../lib/homeCache'
 
 const AD_AFTER = 5
@@ -24,6 +25,7 @@ export function HomePage() {
   const [category, setCategory] = useState(restored?.category ?? '')
   // 검색 버튼으로 시작된 조회만 결과 수를 기록한다
   const logSearchRef = useRef<{ category: string; length: number } | null>(null)
+  const searchFieldRef = useRef<HTMLDivElement>(null)
 
   const categories = useCategories()
   const tabs = useMemo(() => orderCategories(categories), [categories])
@@ -44,6 +46,11 @@ export function HomePage() {
   )
 
   useEffect(() => logScreen('home_screen'), [])
+
+  // 키보드 검색(Enter)이 SearchField의 삭제 버튼이 아니라 "검색" 버튼으로 제출되게 한다
+  useLayoutEffect(() => {
+    if (searchFieldRef.current) disarmUntypedButtons(searchFieldRef.current)
+  }, [])
 
   useLayoutEffect(() => {
     if (restored) window.scrollTo(0, restored.scrollY)
@@ -68,7 +75,9 @@ export function HomePage() {
     e.preventDefault()
     const next = input.trim()
     logSearchRef.current = { category, length: next.length }
-    if (next === query) list.retry()
+    // 결과가 보이도록 키보드를 닫는다
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    if (next === query) list.reload()
     else setQuery(next)
   }
 
@@ -89,7 +98,7 @@ export function HomePage() {
       <Top title={<Top.TitleParagraph size={22}>회수·판매중지 제품을 확인해요</Top.TitleParagraph>} />
 
       <form className="search" onSubmit={submit}>
-        <div className="search__field">
+        <div className="search__field" ref={searchFieldRef}>
           <SearchField
             placeholder="제품명이나 업체명을 입력해요"
             value={input}
@@ -98,7 +107,7 @@ export function HomePage() {
             enterKeyHint="search"
           />
         </div>
-        <Button type="submit" size="medium">
+        <Button type="submit" size="medium" className="search__submit">
           검색
         </Button>
       </form>

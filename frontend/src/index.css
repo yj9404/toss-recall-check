@@ -49,12 +49,27 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 20px;
+  padding: 12px 20px;
 }
 
 .search__field {
   flex: 1;
   min-width: 0;
+}
+
+/* SearchField는 상단 단독 배치용이라 입력칸 위아래 여백(14px)과 아래 스페이서(16px)를 갖고 있다.
+   검색 버튼과 나란히 두려고 이 폼에서만 걷어 내 입력칸(44px)만 남긴다. */
+.search__field .tds-mobile-search-field > div:first-child {
+  padding: 0;
+}
+
+.search__field .tds-mobile-search-field > div:last-child:not(:first-child) {
+  display: none;
+}
+
+/* 입력칸과 같은 높이로 맞춘다(터치 타깃 44px) */
+.search .search__submit {
+  height: 44px;
 }
 
 .recall-list {
