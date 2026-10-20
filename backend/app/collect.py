@@ -1,6 +1,6 @@
 """수집 실행. 스케줄러, POST /internal/collect, CLI가 함께 쓴다.
 
-수동 실행: python -m app.collect [--source <source>]
+수동 실행: python -m app.collect [--source <source>] [--full]
 """
 
 import argparse
@@ -30,6 +30,7 @@ class SourceResult:
     source: str
     status: Literal["ok", "error"]
     row_count: int = 0
+    skipped_count: int = 0
 
 
 def redact(message: str, secrets: list[str]) -> str:
@@ -39,12 +40,15 @@ def redact(message: str, secrets: list[str]) -> str:
     return message
 
 
-async def _run_one(conn: AsyncConnection, collector: Collector, secrets: list[str]) -> SourceResult:
+async def _run_one(
+    conn: AsyncConnection, collector: Collector, secrets: list[str], full: bool = False
+) -> SourceResult:
     try:
-        last_success_at = await db.get_last_success_at(conn, collector.source)
-        records = await collector.fetch(last_success_at)
-        await db.upsert_records(conn, records)
-        await db.record_success(conn, collector.source, len(records))
+        # full이면 성공 기록을 무시하고 첫 수집 범위로 다시 받는다 (매핑을 바꾼 뒤 기존 행 갱신용).
+        last_success_at = None if full else await db.get_last_success_at(conn, collector.source)
+        result = await collector.fetch(last_success_at)
+        await db.upsert_records(conn, result.records)
+        await db.record_success(conn, collector.source, len(result.records), result.skipped_count)
     except Exception as exc:
         message = redact(f"{type(exc).__name__}: {exc}", secrets)
         log.error("%s: collect failed: %s", collector.source, message)
@@ -55,12 +59,17 @@ async def _run_one(conn: AsyncConnection, collector: Collector, secrets: list[st
                 "%s: failed to record error state: %s", collector.source, type(state_exc).__name__
             )
         return SourceResult(collector.source, "error")
-    log.info("%s: upserted %d rows", collector.source, len(records))
-    return SourceResult(collector.source, "ok", len(records))
+    log.info(
+        "%s: upserted %d rows, skipped %d",
+        collector.source,
+        len(result.records),
+        result.skipped_count,
+    )
+    return SourceResult(collector.source, "ok", len(result.records), result.skipped_count)
 
 
 async def run_collection(
-    pool: AsyncConnectionPool, collectors: list[Collector], secrets: list[str]
+    pool: AsyncConnectionPool, collectors: list[Collector], secrets: list[str], full: bool = False
 ) -> list[SourceResult] | None:
     """수집기를 차례로 실행한다. 다른 곳에서 이미 실행 중이면 None."""
     async with pool.connection() as conn:
@@ -70,25 +79,25 @@ async def run_collection(
             log.info("collection already running elsewhere, skipped")
             return None
         try:
-            return [await _run_one(conn, c, secrets) for c in collectors]
+            return [await _run_one(conn, c, secrets, full) for c in collectors]
         finally:
             await conn.execute("SELECT pg_advisory_unlock(%s)", (ADVISORY_LOCK_KEY,))
 
 
-async def _main(settings: Settings, source: str | None) -> int:
+async def _main(settings: Settings, source: str | None, full: bool) -> int:
     collectors = select_collectors(settings, source)
     pool = db.make_pool(settings)
     await pool.open()
     try:
         await db.apply_schema(pool)
-        results = await run_collection(pool, collectors, settings.secret_values())
+        results = await run_collection(pool, collectors, settings.secret_values(), full)
     finally:
         await pool.close()
     if results is None:
         print("another collection is running; skipped")
         return 2
     for r in results:
-        print(f"{r.source}\t{r.status}\t{r.row_count}")
+        print(f"{r.source}\t{r.status}\t{r.row_count}\t{r.skipped_count}")
     return 1 if any(r.status != "ok" for r in results) else 0
 
 
@@ -97,6 +106,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--source",
         help="이 source만 수집 (예: foodsafety_i0490, consumer24, consumer24_0301)",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="성공 기록을 무시하고 첫 수집 범위로 다시 받는다 (매핑을 바꾼 뒤 기존 행 갱신용)",
     )
     args = parser.parse_args(argv)
     setup_logging()
@@ -108,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     log_skipped_sources(settings)
     # psycopg 비동기 모드는 Windows 기본 ProactorEventLoop에서 동작하지 않는다.
     loop_factory = asyncio.SelectorEventLoop if sys.platform == "win32" else None
-    return asyncio.run(_main(settings, args.source), loop_factory=loop_factory)
+    return asyncio.run(_main(settings, args.source, args.full), loop_factory=loop_factory)
 
 
 if __name__ == "__main__":

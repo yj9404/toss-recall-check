@@ -3,7 +3,7 @@ import pytest
 
 from app.images import MAX_BYTES
 
-ALLOWED = "http://coop.foodsafetykorea.go.kr/open/minfo_image.do?fSeq=2681127"
+ALLOWED = "https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578512"
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 100
 
 
@@ -41,12 +41,14 @@ def test_proxy_passes_image(proxy_client):
         "http://evil.example/a.png",
         "http://169.254.169.254/latest/meta-data/",
         "http://localhost/a.png",
-        "http://coop.foodsafetykorea.go.kr.evil.example/a.png",
-        "http://coop.foodsafetykorea.go.kr:8080/a.png",
-        "http://user@coop.foodsafetykorea.go.kr/a.png",
+        "http://www.consumer.go.kr.evil.example/a.png",
+        "https://www.consumer.go.kr:8443/a.png",
+        "https://user@www.consumer.go.kr/a.png",
         "file:///etc/passwd",
-        "ftp://coop.foodsafetykorea.go.kr/a.png",
+        "ftp://www.consumer.go.kr/a.png",
         "not a url",
+        # 식품안전나라 이미지는 로그인 페이지로 302가 나서 기본 허용목록에서 뺐다.
+        "http://coop.foodsafetykorea.go.kr/open/minfo_image.do?fSeq=2681127",
     ],
 )
 def test_proxy_rejects_hosts_outside_allowlist(proxy_client, url):
@@ -57,7 +59,7 @@ def test_proxy_rejects_hosts_outside_allowlist(proxy_client, url):
 
 
 def test_proxy_sniffs_jpeg_without_content_type(proxy_client):
-    # 식약처 이미지 서버는 Content-Type 헤더 없이 JPEG를 보낸다.
+    # 원본 서버가 Content-Type 없이(또는 깨진 값으로) JPEG를 보내는 경우
     jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"0" * 100
     client, _ = proxy_client(lambda r: httpx.Response(200, content=jpeg))
     resp = client.get("/api/v1/image", params={"u": ALLOWED})
@@ -141,3 +143,11 @@ def test_proxy_custom_allowlist(make_client):
         == 200
     )
     assert client.get("/api/v1/image", params={"u": ALLOWED}).status_code == 400
+
+
+def test_proxy_empty_body_is_404(proxy_client):
+    # 소비자24는 첨부가 깨진 이미지를 200 + 0바이트로 준다.
+    client, _ = proxy_client(lambda r: httpx.Response(200, content=b""))
+    resp = client.get("/api/v1/image", params={"u": ALLOWED})
+    assert resp.status_code == 404
+    assert resp.json() == {"detail": "image unavailable"}

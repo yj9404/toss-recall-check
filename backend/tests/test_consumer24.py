@@ -2,7 +2,7 @@ import asyncio
 import json
 import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 import pytest
@@ -16,6 +16,7 @@ from app.collectors.consumer24 import (
     normalize_item,
     parse_barcode,
     parse_response,
+    recall_method,
     recall_period,
 )
 from tests.conftest import FIXTURES
@@ -47,9 +48,18 @@ def _xml(body: bytes) -> httpx.Response:
     return httpx.Response(200, content=body, headers={"content-type": "text/xml;charset=UTF-8"})
 
 
+TODAY = date(2026, 10, 20)
+
+
 def _collector(menu: str, key: str, handler, **kwargs) -> Consumer24Collector:
+    kwargs.setdefault("window_days", 1095)
     return Consumer24Collector(
-        menu, key, transport=httpx.MockTransport(handler), request_interval=0, **kwargs
+        menu,
+        key,
+        transport=httpx.MockTransport(handler),
+        request_interval=0,
+        today=lambda: TODAY,
+        **kwargs,
     )
 
 
@@ -109,8 +119,10 @@ def test_normalize_consumer_product_item():
     assert record.grade is None
     assert record.manufactured_text is None
     assert record.expiry_text is None
-    assert record.recall_method == "인증번호: CB067R2225-4001"
+    assert record.recall_method is None  # "인증번호: CB067R2225-4001"은 회수 방법이 아니다
+    assert record.raw["recallProcssInfo"] == "인증번호: CB067R2225-4001"
     assert record.address is None
+    assert record.contact_text is None
     assert record.barcode is None  # stdBrcd "-"
     assert record.image_urls == [
         "https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578512",
@@ -149,7 +161,8 @@ def test_normalize_vehicle_item_strips_html():
     )
     assert record.manufactured_text == "20100623~20100814"
     assert record.model_text == "아반떼 (HD), i30 (FD)"
-    assert record.address == "현대자동차 대표번호 080-600-6000"
+    assert record.address is None
+    assert record.contact_text == "현대자동차 대표번호 080-600-6000"
     assert record.recall_method is None
     assert record.recall_period_text == "20261014~"
     assert record.registered_at == datetime(2026, 10, 14, tzinfo=KST)
@@ -253,6 +266,22 @@ def test_html_to_text(value, expected):
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("인증번호: CB067R2225-4001", None),
+        ("인증번호: -", None),
+        ("인증번호 : 공급자적합성", None),
+        ("인증번호: CB064R3345-1003 <br (인증모델: 반짝반짝 달님이)>", None),
+        ("<p>무상 수리 후 반환</p>", "무상 수리 후 반환"),
+        ("사업자 홈페이지 주소 :\n\n이메일 :", "사업자 홈페이지 주소 :\n\n이메일 :"),
+        ("", None),
+    ],
+)
+def test_recall_method_drops_certification_numbers(value, expected):
+    assert recall_method(value) == expected
+
+
+@pytest.mark.parametrize(
     ("begin", "end", "expected"),
     [
         ("20261001", "20271231", "20261001~20271231"),
@@ -274,62 +303,88 @@ def test_record_is_json_serializable():
 # --- 수집 (httpx 모킹) ---
 
 
-def test_first_fetch_gets_everything_with_required_params():
-    seen = []
+def _api(page_handler=None, *, total: int = 3, dated: int = 3, seen: list | None = None):
+    """목록 요청은 page_handler로 답하고, 공표일 없는 건수를 세는 1건짜리 요청(cntPerPage=1)은
+    날짜 조건이 없으면 total, recallPublictBgnde=19000101이면 dated를 allCnt로 답한다."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(dict(request.url.params))
-        return _xml(_page("consumer24_0101.xml", 3, 0, 3))
+        params = dict(request.url.params)
+        if params["cntPerPage"] == "1":
+            all_cnt = dated if params.get("recallPublictBgnde") == "19000101" else total
+            return _xml(_page("consumer24_0101.xml", all_cnt, 0, 1))
+        if seen is not None:
+            seen.append(params)
+        return page_handler(request)
 
-    records = asyncio.run(_collector("0101", KEY_0101, handler).fetch(None))
-    assert [r.source_id for r in records] == [
+    return handler
+
+
+def test_first_fetch_gets_snapshot_window_with_required_params():
+    seen = []
+    handler = _api(lambda r: _xml(_page("consumer24_0101.xml", 3, 0, 3)), seen=seen)
+    result = asyncio.run(_collector("0101", KEY_0101, handler).fetch(None))
+    assert [r.source_id for r in result.records] == [
         "RCLL_000000000607750",
         "RCLL_000000000607751",
         "RCLL_000000000607650",
     ]
+    # 성공 기록이 없으면 전량이 아니라 오늘(2026-10-20) - window_days(1095)부터
     assert seen == [
-        {"serviceKey": KEY_0101, "pageNo": "1", "cntPerPage": "100", "cntntsId": "0101"}
+        {
+            "serviceKey": KEY_0101,
+            "pageNo": "1",
+            "cntPerPage": "100",
+            "cntntsId": "0101",
+            "recallPublictBgnde": "20231021",
+        }
     ]
+
+
+def test_overseas_first_fetch_uses_short_window():
+    seen = []
+    handler = _api(lambda r: _xml(_fixture("consumer24_code30.xml")), seen=seen)
+    collector = _collector("0501", "key-0501", handler, window_days=180)
+    asyncio.run(collector.fetch(None))
+    assert [p["recallPublictBgnde"] for p in seen] == ["20260423"]
 
 
 def test_fetch_paginates_by_all_cnt():
     seen = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def pages(request: httpx.Request) -> httpx.Response:
         page_no = int(request.url.params["pageNo"])
-        seen.append((page_no, request.url.params["cntPerPage"]))
         start = (page_no - 1) * 2
         return _xml(_page("consumer24_0101.xml", 3, start, start + 2))
 
-    records = asyncio.run(_collector("0101", KEY_0101, handler, page_size=2).fetch(None))
-    assert len(records) == 3
-    assert seen == [(1, "2"), (2, "2")]
+    handler = _api(pages, seen=seen)
+    result = asyncio.run(_collector("0101", KEY_0101, handler, page_size=2).fetch(None))
+    assert len(result.records) == 3
+    assert [(p["pageNo"], p["cntPerPage"]) for p in seen] == [("1", "2"), ("2", "2")]
 
 
 def test_fetch_stops_on_empty_page_even_if_all_cnt_is_larger():
-    pages = []
+    seen = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        page_no = int(request.url.params["pageNo"])
-        pages.append(page_no)
-        if page_no == 1:
+    def pages(request: httpx.Request) -> httpx.Response:
+        if request.url.params["pageNo"] == "1":
             return _xml(_page("consumer24_0101.xml", 10, 0, 2))
         return _xml(_page("consumer24_0101.xml", 10, 0, 0))
 
-    records = asyncio.run(_collector("0101", KEY_0101, handler, page_size=2).fetch(None))
-    assert len(records) == 2
-    assert pages == [1, 2]
+    handler = _api(pages, seen=seen)
+    result = asyncio.run(_collector("0101", KEY_0101, handler, page_size=2).fetch(None))
+    assert len(result.records) == 2
+    assert [p["pageNo"] for p in seen] == ["1", "2"]
 
 
 def test_fetch_merges_duplicates_across_pages():
-    def handler(request: httpx.Request) -> httpx.Response:
+    def pages(request: httpx.Request) -> httpx.Response:
         # 페이지 사이에 새 항목이 끼어 1페이지 마지막 항목이 2페이지에 다시 나온 경우
-        page_no = int(request.url.params["pageNo"])
-        start = 0 if page_no == 1 else 1
+        start = 0 if request.url.params["pageNo"] == "1" else 1
         return _xml(_page("consumer24_0101.xml", 4, start, start + 2))
 
-    records = asyncio.run(_collector("0101", KEY_0101, handler, page_size=2).fetch(None))
-    assert sorted(r.source_id for r in records) == [
+    collector = _collector("0101", KEY_0101, _api(pages), page_size=2)
+    result = asyncio.run(collector.fetch(None))
+    assert sorted(r.source_id for r in result.records) == [
         "RCLL_000000000607650",
         "RCLL_000000000607750",
         "RCLL_000000000607751",
@@ -337,38 +392,59 @@ def test_fetch_merges_duplicates_across_pages():
 
 
 @pytest.mark.parametrize(
-    ("last_success_at", "lookback_days", "expected"),
+    ("last_success_at", "lookback_days", "window_days", "expected"),
     [
-        (datetime(2026, 10, 19, 9, 0, tzinfo=KST), 30, "20260919"),
-        (datetime(2026, 10, 19, 9, 0, tzinfo=KST), 7, "20261012"),
+        (datetime(2026, 10, 19, 9, 0, tzinfo=KST), 30, 1095, "20260919"),
+        (datetime(2026, 10, 19, 9, 0, tzinfo=KST), 7, 1095, "20261012"),
         # UTC 10-18 16:00은 KST 10-19 01:00이다.
-        (datetime(2026, 10, 18, 16, 0, tzinfo=UTC), 30, "20260919"),
-        # 수집이 오래 끊겼으면 마지막 성공일부터 거슬러 받는다.
-        (datetime(2026, 8, 1, 12, 0, tzinfo=KST), 30, "20260702"),
+        (datetime(2026, 10, 18, 16, 0, tzinfo=UTC), 30, 1095, "20260919"),
+        # 수집이 끊겼으면 마지막 성공일부터 거슬러 받는다.
+        (datetime(2026, 8, 1, 12, 0, tzinfo=KST), 30, 1095, "20260702"),
+        # 다만 오늘 - window_days보다 이르게는 가지 않는다.
+        (datetime(2022, 1, 1, 12, 0, tzinfo=KST), 30, 1095, "20231021"),
+        (datetime(2026, 3, 1, 12, 0, tzinfo=KST), 30, 180, "20260423"),
     ],
 )
-def test_incremental_fetch_sends_publication_start_date(last_success_at, lookback_days, expected):
+def test_incremental_fetch_sends_publication_start_date(
+    last_success_at, lookback_days, window_days, expected
+):
     seen = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(dict(request.url.params))
-        return _xml(_page("consumer24_0301.xml", 3, 0, 3))
-
-    collector = _collector("0301", KEY_0301, handler, lookback_days=lookback_days)
-    records = asyncio.run(collector.fetch(last_success_at))
-    assert len(records) == 3
+    handler = _api(lambda r: _xml(_page("consumer24_0301.xml", 3, 0, 3)), seen=seen)
+    collector = _collector(
+        "0301", KEY_0301, handler, lookback_days=lookback_days, window_days=window_days
+    )
+    result = asyncio.run(collector.fetch(last_success_at))
+    assert len(result.records) == 3
     [params] = seen
     assert params["recallPublictBgnde"] == expected
     assert params["cntntsId"] == "0301"
     assert "recallPublictEndde" not in params
 
 
-def test_fetch_code_30_returns_empty():
-    def handler(request):
-        return _xml(_fixture("consumer24_code30.xml"))
+def test_undated_items_are_counted_as_skipped():
+    # 날짜 조건을 걸면 API가 공표일 없는 항목을 빼고 주므로 allCnt 차이로 센다.
+    # 0207(의료기기)은 전부 공표일이 없다.
+    handler = _api(lambda r: _xml(_fixture("consumer24_code30.xml")), total=113, dated=0)
+    result = asyncio.run(_collector("0207", "key-0207", handler).fetch(None))
+    assert result.records == []
+    assert result.skipped_count == 113
 
+
+def test_invalid_items_are_added_to_skipped():
+    root = ET.fromstring(_page("consumer24_0101.xml", 2, 0, 2))
+    root.find("channel/return/content/recallPublictBgnde").text = "2026-09-16"
+    body = ET.tostring(root, encoding="utf-8")
+    handler = _api(lambda r: _xml(body), total=5, dated=4)
+    result = asyncio.run(_collector("0101", KEY_0101, handler).fetch(None))
+    assert len(result.records) == 1
+    assert result.skipped_count == 1 + 1  # 공표일 없음 1 + 형식 오류 1
+
+
+def test_fetch_code_30_returns_empty():
+    handler = _api(lambda r: _xml(_fixture("consumer24_code30.xml")), total=0, dated=0)
     collector = _collector("0301", KEY_0301, handler)
-    assert asyncio.run(collector.fetch(datetime(2026, 10, 19, tzinfo=KST))) == []
+    result = asyncio.run(collector.fetch(datetime(2026, 10, 19, tzinfo=KST)))
+    assert (result.records, result.skipped_count) == ([], 0)
 
 
 def test_fetch_code_50_raises_without_key():
@@ -401,13 +477,73 @@ def test_fetch_transport_error_does_not_leak_key():
 
 def test_fetch_requires_key():
     with pytest.raises(CollectError, match="CONSUMER24_KEY_0101"):
-        asyncio.run(Consumer24Collector("0101", "").fetch(None))
+        asyncio.run(Consumer24Collector("0101", "", window_days=1095).fetch(None))
 
 
 def test_unsupported_menu_is_rejected():
     for menu in ("0201", "0203", "9999"):
         with pytest.raises(ValueError):
-            Consumer24Collector(menu, "key")
+            Consumer24Collector(menu, "key", window_days=1095)
+
+
+# --- probe (python -m app.check_sources) ---
+
+
+def test_probe_reports_status_code_total_and_images():
+    seen = []
+
+    def handler(request):
+        seen.append(dict(request.url.params))
+        return _xml(_page("consumer24_0101.xml", 4474, 0, 1))
+
+    result = asyncio.run(_collector("0101", KEY_0101, handler).probe())
+    assert seen == [{"serviceKey": KEY_0101, "pageNo": "1", "cntPerPage": "1", "cntntsId": "0101"}]
+    assert result.ok
+    assert (result.source, result.http_status, result.code, result.total) == (
+        "consumer24_0101",
+        200,
+        "00",
+        4474,
+    )
+    assert len(result.image_urls) == 2
+    assert result.elapsed_ms >= 0
+
+
+def test_probe_code_30_is_ok():
+    handler = lambda r: _xml(_fixture("consumer24_code30.xml"))  # noqa: E731
+    result = asyncio.run(_collector("0403", "key", handler).probe())
+    assert (result.ok, result.code, result.total) == (True, "30", 0)
+
+
+def test_probe_code_50_is_failure():
+    handler = lambda r: _xml(_fixture("consumer24_code50.xml"))  # noqa: E731
+    result = asyncio.run(_collector("0101", KEY_0101, handler).probe())
+    assert not result.ok
+    assert result.code == "50"
+    assert result.error == "등록되지 않은 서비스키 에러"
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(403, text="<html>blocked</html>"),
+        httpx.Response(200, text="<html>maintenance</html>"),
+    ],
+)
+def test_probe_non_api_response_is_failure(response):
+    result = asyncio.run(_collector("0101", KEY_0101, lambda r: response).probe())
+    assert not result.ok
+    assert result.http_status == response.status_code
+
+
+def test_probe_transport_error_does_not_leak_key():
+    def handler(request):
+        raise httpx.ConnectTimeout(f"timed out connecting to {request.url}")
+
+    result = asyncio.run(_collector("0101", KEY_0101, handler).probe())
+    assert not result.ok
+    assert result.http_status is None
+    assert result.error == "ConnectTimeout"
 
 
 # --- 메뉴 하나가 실패해도 나머지는 진행 ---
@@ -433,20 +569,18 @@ def test_one_menu_failure_does_not_stop_others(fake_db):
     def failing(request):
         return _xml(_fixture("consumer24_code50.xml"))
 
-    def ok(request):
-        return _xml(_page("consumer24_0301.xml", 3, 0, 3))
-
+    ok = _api(lambda r: _xml(_page("consumer24_0301.xml", 3, 0, 3)), total=5, dated=3)
     collectors = [_collector("0101", KEY_0101, failing), _collector("0301", KEY_0301, ok)]
     results = asyncio.run(collect.run_collection(_FakePool(), collectors, [KEY_0101, KEY_0301]))
 
-    assert [(r.source, r.status, r.row_count) for r in results] == [
-        ("consumer24_0101", "error", 0),
-        ("consumer24_0301", "ok", 3),
+    assert [(r.source, r.status, r.row_count, r.skipped_count) for r in results] == [
+        ("consumer24_0101", "error", 0, 0),
+        ("consumer24_0301", "ok", 3, 2),
     ]
     # 실패한 메뉴는 upsert하지 않으므로 기존 데이터가 그대로 남는다.
     [upserted] = fake_db["upsert"]
     assert {r.source for r in upserted} == {"consumer24_0301"}
-    assert fake_db["success"] == [("consumer24_0301", 3)]
+    assert fake_db["success"] == [("consumer24_0301", 3, 2)]
     [(source, message)] = fake_db["error"]
     assert source == "consumer24_0101"
     assert "API result 50" in message
@@ -456,13 +590,27 @@ def test_one_menu_failure_does_not_stop_others(fake_db):
 def test_source_state_is_per_menu(fake_db):
     seen = {}
 
-    def handler(request):
+    def pages(request):
+        seen[request.url.params["cntntsId"]] = request.url.params.get("recallPublictBgnde")
+        return _xml(_fixture("consumer24_code30.xml"))
+
+    handler = _api(pages, total=0, dated=0)
+    fake_db["last_success"]["consumer24_0301"] = datetime(2026, 10, 19, 9, 0, tzinfo=KST)
+    collectors = [_collector("0101", KEY_0101, handler), _collector("0301", KEY_0301, handler)]
+    asyncio.run(collect.run_collection(_FakePool(), collectors, []))
+    # 0101은 성공 기록이 없어 첫 수집 범위, 0301은 증분
+    assert seen == {"0101": "20231021", "0301": "20260919"}
+    assert fake_db["success"] == [("consumer24_0101", 0, 0), ("consumer24_0301", 0, 0)]
+
+
+def test_full_run_ignores_success_records(fake_db):
+    seen = {}
+
+    def pages(request):
         seen[request.url.params["cntntsId"]] = request.url.params.get("recallPublictBgnde")
         return _xml(_fixture("consumer24_code30.xml"))
 
     fake_db["last_success"]["consumer24_0301"] = datetime(2026, 10, 19, 9, 0, tzinfo=KST)
-    collectors = [_collector("0101", KEY_0101, handler), _collector("0301", KEY_0301, handler)]
-    asyncio.run(collect.run_collection(_FakePool(), collectors, []))
-    # 0101은 성공 기록이 없어 전량, 0301은 증분
-    assert seen == {"0101": None, "0301": "20260919"}
-    assert fake_db["success"] == [("consumer24_0101", 0), ("consumer24_0301", 0)]
+    collectors = [_collector("0301", KEY_0301, _api(pages, total=0, dated=0))]
+    asyncio.run(collect.run_collection(_FakePool(), collectors, [], full=True))
+    assert seen == {"0301": "20231021"}

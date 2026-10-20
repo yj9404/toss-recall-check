@@ -93,7 +93,7 @@ def test_fetch_parses_fixture_and_builds_url():
         seen.append(request.url.path)
         return httpx.Response(200, json=load_fixture("i0490_sample.json"))
 
-    records = asyncio.run(_collector(handler).fetch())
+    records = asyncio.run(_collector(handler).fetch()).records
     assert [r.source_id for r in records] == ["3000235717", "3000235627", "3000235620"]
     assert seen == [f"/api/{API_KEY}/I0490/json/1/1000"]
 
@@ -109,7 +109,7 @@ def test_fetch_paginates_until_total():
         body = {"I0490": {**data["I0490"], "total_count": "3", "row": all_rows[start - 1 : end]}}
         return httpx.Response(200, json=body)
 
-    records = asyncio.run(_collector(handler, page_size=2).fetch())
+    records = asyncio.run(_collector(handler, page_size=2).fetch()).records
     assert len(records) == 3
     assert seen == [(1, 2), (3, 4)]
 
@@ -126,7 +126,7 @@ def test_fetch_no_data_returns_empty():
             },
         )
 
-    assert asyncio.run(_collector(handler).fetch()) == []
+    assert asyncio.run(_collector(handler).fetch()).records == []
 
 
 @pytest.mark.parametrize(
@@ -186,3 +186,53 @@ def test_fetch_requires_key():
 def test_record_is_json_serializable():
     record = normalize_row(_rows()[0])
     json.dumps(record.model_dump(mode="json"), ensure_ascii=False)
+
+
+def test_fetch_counts_rows_without_id_or_date_as_skipped():
+    data = load_fixture("i0490_sample.json")
+    rows = data["I0490"]["row"]
+    body = {"I0490": {**data["I0490"], "row": [rows[0], {**rows[1], "CRET_DTM": ""}]}}
+
+    result = asyncio.run(_collector(lambda r: httpx.Response(200, json=body)).fetch())
+    assert [r.source_id for r in result.records] == ["3000235717"]
+    assert result.skipped_count == 1
+
+
+def test_probe_reports_status_code_and_images():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        return httpx.Response(200, json=load_fixture("i0490_sample.json"))
+
+    result = asyncio.run(_collector(handler).probe())
+    assert seen == [f"/api/{API_KEY}/I0490/json/1/1"]
+    assert result.ok
+    # total은 fixture 원문의 total_count (row는 3건만 잘라 둠)
+    assert (result.http_status, result.code, result.total) == (200, "INFO-000", 381)
+    assert result.image_urls[0].startswith("http://coop.foodsafetykorea.go.kr/")
+
+
+def test_probe_reports_api_error_without_key():
+    def handler(request):
+        return httpx.Response(200, json={"RESULT": {"CODE": "INFO-100", "MSG": "인증키 오류"}})
+
+    result = asyncio.run(_collector(handler).probe())
+    assert not result.ok
+    assert result.code == "INFO-100"
+    assert API_KEY not in (result.error or "")
+
+
+def test_probe_transport_error_does_not_leak_key():
+    def handler(request):
+        raise httpx.ConnectError(f"cannot connect to {request.url}")
+
+    result = asyncio.run(_collector(handler).probe())
+    assert not result.ok
+    assert result.error == "ConnectError"
+
+
+def test_probe_without_key():
+    result = asyncio.run(FoodSafetyI0490Collector("").probe())
+    assert not result.ok
+    assert result.error == "FOODSAFETY_API_KEY is not set"

@@ -30,6 +30,9 @@ ALTER TABLE recalls ADD COLUMN IF NOT EXISTS source_label       text;
 ALTER TABLE recalls ADD COLUMN IF NOT EXISTS model_text         text;
 ALTER TABLE recalls ADD COLUMN IF NOT EXISTS consumer_tips      text;
 ALTER TABLE recalls ADD COLUMN IF NOT EXISTS recall_period_text text;
+ALTER TABLE recalls ADD COLUMN IF NOT EXISTS contact_text       text;
+-- 마지막 성공 수집에서 키·등록일(공표일)이 없어 받지 않은 건수
+ALTER TABLE source_state ADD COLUMN IF NOT EXISTS skipped_count integer;
 
 CREATE TABLE IF NOT EXISTS source_state (
     source          text PRIMARY KEY,

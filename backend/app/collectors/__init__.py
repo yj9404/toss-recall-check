@@ -1,7 +1,7 @@
 import logging
 
 from app.collectors.base import CollectError, Collector, RecallRecord
-from app.collectors.consumer24 import Consumer24Collector
+from app.collectors.consumer24 import OVERSEAS_MENU, Consumer24Collector
 from app.collectors.foodsafety_i0490 import FoodSafetyI0490Collector
 from app.config import Settings
 
@@ -22,7 +22,16 @@ def build_collectors(settings: Settings) -> list[Collector]:
         FoodSafetyI0490Collector(settings.foodsafety_api_key.get_secret_value()),
         # 서비스키가 있는 소비자24 메뉴만 만든다.
         *(
-            Consumer24Collector(menu, key, lookback_days=settings.consumer24_lookback_days)
+            Consumer24Collector(
+                menu,
+                key,
+                window_days=(
+                    settings.consumer24_overseas_days
+                    if menu == OVERSEAS_MENU
+                    else settings.snapshot_days
+                ),
+                lookback_days=settings.consumer24_lookback_days,
+            )
             for menu, key in settings.consumer24_keys.items()
             if key
         ),

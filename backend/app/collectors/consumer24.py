@@ -17,7 +17,9 @@ import asyncio
 import html
 import logging
 import re
+import time
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -27,6 +29,8 @@ from app.collectors.base import (
     KST,
     CollectError,
     Collector,
+    FetchResult,
+    ProbeResult,
     RecallRecord,
     clean_text,
     parse_image_urls,
@@ -41,6 +45,9 @@ REQUEST_INTERVAL_SECONDS = 0.3
 CODE_OK = "00"
 CODE_NO_DATA = "30"
 DEFAULT_SOURCE_LABEL = "공정거래위원회 소비자24"
+# 해외리콜은 10만 건이 넘어 SNAPSHOT_DAYS 대신 CONSUMER24_OVERSEAS_DAYS 범위만 받고 보여 준다.
+OVERSEAS_MENU = "0501"
+OVERSEAS_SOURCE = f"{NAME}_{OVERSEAS_MENU}"
 
 # cntntsId → category. 식품(0201)·축산물(0203)은 일부러 넣지 않는다.
 MENU_CATEGORIES: dict[str, str] = {
@@ -105,8 +112,8 @@ def recall_period(begin: Any, end: Any) -> str | None:
     return f"{begin or ''}~{end or ''}"
 
 
-def parse_response(body: bytes) -> tuple[int, list[dict[str, str]]]:
-    """(allCnt, content 목록). 결과코드 30(데이터 없음)은 (0, []), 그 밖의 코드는 CollectError."""
+def _result_element(body: bytes) -> ET.Element:
+    """정상 응답은 channel/return, 에러 응답은 루트 바로 아래 return에 결과가 온다."""
     try:
         root = ET.fromstring(body)
     except ET.ParseError:
@@ -116,7 +123,12 @@ def parse_response(body: bytes) -> tuple[int, list[dict[str, str]]]:
         result = root.find("return")
     if result is None:
         raise CollectError("missing return element")
+    return result
 
+
+def parse_response(body: bytes) -> tuple[int, list[dict[str, str]]]:
+    """(allCnt, content 목록). 결과코드 30(데이터 없음)은 (0, []), 그 밖의 코드는 CollectError."""
+    result = _result_element(body)
     code = (result.findtext("code") or "").strip()
     if code == CODE_NO_DATA:
         return 0, []
@@ -132,6 +144,17 @@ def parse_response(body: bytes) -> tuple[int, list[dict[str, str]]]:
         for content in result.iterfind("content")
     ]
     return total, items
+
+
+def recall_method(value: Any) -> str | None:
+    """recallProcssInfo. 공산품은 대부분 "인증번호: …"라 회수 방법이 아니므로 버린다.
+
+    원문은 raw에 남는다.
+    """
+    text = html_to_text(value)
+    if text is None or text.startswith("인증번호"):
+        return None
+    return text
 
 
 def normalize_item(item: dict[str, str]) -> RecallRecord | None:
@@ -152,8 +175,10 @@ def normalize_item(item: dict[str, str]) -> RecallRecord | None:
         grade=None,  # hrmflGrad는 형식이 정해지지 않아 raw에만 둔다.
         manufactured_text=html_to_text(item.get("mnfcturPd")),
         expiry_text=html_to_text(item.get("distbTmlmtDe")),
-        recall_method=html_to_text(item.get("recallProcssInfo")),
-        address=html_to_text(item.get("recallEntrpsInfo")),
+        recall_method=recall_method(item.get("recallProcssInfo")),
+        # recallEntrpsInfo는 주소보다 전화번호·홈페이지가 많아 address가 아니라 contact_text에 둔다.
+        address=None,
+        contact_text=html_to_text(item.get("recallEntrpsInfo")),
         barcode=parse_barcode(item.get("stdBrcd")),
         image_urls=parse_image_urls(item.get("recallImgUrls")),
         # 문서의 infoOriginUrl은 실제 응답에서 infoOriginInsttUrl이다. 건별 링크가 아니라
@@ -168,43 +193,61 @@ def normalize_item(item: dict[str, str]) -> RecallRecord | None:
     )
 
 
+def _kst_today() -> date:
+    return datetime.now(KST).date()
+
+
 class Consumer24Collector(Collector):
     def __init__(
         self,
         menu_id: str,
         api_key: str,
         *,
+        window_days: int,
         lookback_days: int = 30,
         transport: httpx.AsyncBaseTransport | None = None,
         page_size: int = PAGE_SIZE,
         request_interval: float = REQUEST_INTERVAL_SECONDS,
+        today: Callable[[], date] = _kst_today,
     ) -> None:
+        """window_days: 받는 공표일 범위의 최대치.
+
+        SNAPSHOT_DAYS, 0501(해외리콜)은 CONSUMER24_OVERSEAS_DAYS.
+        """
         if menu_id not in MENU_CATEGORIES:
             raise ValueError(f"unsupported consumer24 menu: {menu_id}")
         self.menu_id = menu_id
         self.source = f"{NAME}_{menu_id}"
         self.categories = (MENU_CATEGORIES[menu_id],)
         self._api_key = api_key
+        self._window_days = window_days
         self._lookback_days = lookback_days
         self._transport = transport
         self._page_size = page_size
         self._request_interval = request_interval
+        self._today = today
 
     @property
     def group(self) -> str:
         return NAME
 
-    async def fetch(self, last_success_at: datetime | None = None) -> list[RecallRecord]:
-        """성공 기록이 없으면 전량, 있으면 공표일이 최근 lookback_days일 안인 것만 받는다.
+    def since(self, last_success_at: datetime | None) -> date:
+        """요청할 공표 시작일 하한.
 
-        기준일은 마지막 성공일이다. 매시간 수집하면 "오늘"과 같고, 수집이 오래 끊겼다가
-        다시 돌 때는 그 공백까지 거슬러 받는다.
+        성공 기록이 없으면 오늘 - window_days. 있으면 마지막 성공일 - lookback_days이되
+        오늘 - window_days보다 이르지 않게 한다. 매시간 수집하면 "오늘 - lookback_days"와 같고,
+        수집이 끊겼다가 다시 돌 때는 그 공백까지(최대 window_days) 거슬러 받는다.
         """
+        floor = self._today() - timedelta(days=self._window_days)
+        if last_success_at is None:
+            return floor
+        incremental = last_success_at.astimezone(KST).date() - timedelta(days=self._lookback_days)
+        return max(floor, incremental)
+
+    async def fetch(self, last_success_at: datetime | None = None) -> FetchResult:
         if not self._api_key:
             raise CollectError(f"CONSUMER24_KEY_{self.menu_id} is not set")
-        since = None
-        if last_success_at is not None:
-            since = last_success_at.astimezone(KST).date() - timedelta(days=self._lookback_days)
+        since = self.since(last_success_at)
 
         items: list[dict[str, str]] = []
         async with httpx.AsyncClient(timeout=30.0, transport=self._transport) as client:
@@ -215,27 +258,84 @@ class Consumer24Collector(Collector):
                 if not page or page_no * self._page_size >= total:
                     break
                 page_no += 1
+            undated = await self._count_undated(client)
 
         # 페이지를 넘기는 사이 새 항목이 끼면 같은 항목이 두 번 올 수 있어 recallSn으로 합친다.
         records: dict[str, RecallRecord] = {}
-        skipped = 0
+        invalid = 0
         for item in items:
             record = normalize_item(item)
             if record is None:
-                skipped += 1
+                invalid += 1
             else:
                 records[record.source_id] = record
-        if skipped:
-            log.warning("%s: skipped %d items without id, menu or date", self.source, skipped)
-        return list(records.values())
+        if undated or invalid:
+            log.warning(
+                "%s: skipped %d items without publication date, %d invalid items",
+                self.source,
+                undated,
+                invalid,
+            )
+        return FetchResult(list(records.values()), skipped_count=undated + invalid)
+
+    async def _count_undated(self, client: httpx.AsyncClient) -> int:
+        """공표일이 없는 건수 (메뉴 전체). 날짜 조건을 걸면 API가 이런 항목을 아예 빼고 주므로
+        조건 없는 allCnt에서 공표일이 있는 건수를 뺀다."""
+        total, _ = await self._fetch_page(client, 1, None, page_size=1)
+        dated, _ = await self._fetch_page(client, 1, date(1900, 1, 1), page_size=1)
+        return max(total - dated, 0)
+
+    async def probe(self) -> ProbeResult:
+        params = {
+            "serviceKey": self._api_key,
+            "pageNo": 1,
+            "cntPerPage": 1,
+            "cntntsId": self.menu_id,
+        }
+        await asyncio.sleep(self._request_interval)
+        started = time.perf_counter()
+        try:
+            async with httpx.AsyncClient(timeout=30.0, transport=self._transport) as client:
+                resp = await client.get(BASE_URL, params=params)
+        except httpx.HTTPError as exc:
+            elapsed = int((time.perf_counter() - started) * 1000)
+            return ProbeResult(self.source, ok=False, elapsed_ms=elapsed, error=type(exc).__name__)
+        elapsed = int((time.perf_counter() - started) * 1000)
+        result = ProbeResult(
+            self.source, ok=False, http_status=resp.status_code, elapsed_ms=elapsed
+        )
+        try:
+            element = _result_element(resp.content)
+        except CollectError as exc:
+            result.error = str(exc)
+            return result
+        result.code = (element.findtext("code") or "").strip()
+        result.ok = resp.status_code == 200 and result.code in (CODE_OK, CODE_NO_DATA)
+        if result.code == CODE_OK:
+            try:
+                total, items = parse_response(resp.content)
+            except CollectError as exc:
+                result.ok, result.error = False, str(exc)
+                return result
+            result.total = total
+            result.image_urls = [u for i in items for u in parse_image_urls(i.get("recallImgUrls"))]
+        elif result.code == CODE_NO_DATA:
+            result.total = 0
+        else:
+            result.error = (element.findtext("codeMsg") or "").strip()
+        return result
 
     async def _fetch_page(
-        self, client: httpx.AsyncClient, page_no: int, since: date | None
+        self,
+        client: httpx.AsyncClient,
+        page_no: int,
+        since: date | None,
+        page_size: int | None = None,
     ) -> tuple[int, list[dict[str, str]]]:
         params = {
             "serviceKey": self._api_key,
             "pageNo": page_no,
-            "cntPerPage": self._page_size,
+            "cntPerPage": page_size or self._page_size,
             "cntntsId": self.menu_id,
         }
         if since is not None:

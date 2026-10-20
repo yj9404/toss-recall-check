@@ -2,6 +2,7 @@
 
 import logging
 import re
+import time
 from datetime import datetime
 from typing import Any
 from urllib.parse import quote
@@ -11,6 +12,8 @@ import httpx
 from app.collectors.base import (
     CollectError,
     Collector,
+    FetchResult,
+    ProbeResult,
     RecallRecord,
     clean_text,
     parse_image_urls,
@@ -89,7 +92,7 @@ class FoodSafetyI0490Collector(Collector):
         self._transport = transport
         self._page_size = page_size
 
-    async def fetch(self, last_success_at: datetime | None = None) -> list[RecallRecord]:
+    async def fetch(self, last_success_at: datetime | None = None) -> FetchResult:
         # I0490은 날짜 조건 없이 매번 전량을 받으므로 last_success_at을 쓰지 않는다.
         if not self._api_key:
             raise CollectError("FOODSAFETY_API_KEY is not set")
@@ -115,14 +118,45 @@ class FoodSafetyI0490Collector(Collector):
                 records.append(record)
         if skipped:
             log.warning("%s: skipped %d rows without id or registered_at", self.source, skipped)
-        return records
+        return FetchResult(records, skipped_count=skipped)
+
+    async def probe(self) -> ProbeResult:
+        if not self._api_key:
+            return ProbeResult(self.source, ok=False, error="FOODSAFETY_API_KEY is not set")
+        started = time.perf_counter()
+        try:
+            async with httpx.AsyncClient(timeout=30.0, transport=self._transport) as client:
+                resp = await client.get(self._url(1, 1))
+        except httpx.HTTPError as exc:
+            elapsed = int((time.perf_counter() - started) * 1000)
+            return ProbeResult(self.source, ok=False, elapsed_ms=elapsed, error=type(exc).__name__)
+        elapsed = int((time.perf_counter() - started) * 1000)
+        result = ProbeResult(
+            self.source, ok=False, http_status=resp.status_code, elapsed_ms=elapsed
+        )
+        try:
+            data = resp.json()
+        except ValueError:
+            result.error = "response is not JSON"
+            return result
+        result.code, _ = _result_code(data)
+        try:
+            result.total, rows = parse_page(data)
+        except CollectError as exc:
+            result.error = str(exc)
+            return result
+        result.ok = resp.status_code == 200
+        result.image_urls = [u for r in rows for u in parse_image_urls(r.get("IMG_FILE_PATH"))]
+        return result
+
+    def _url(self, start: int, end: int) -> str:
+        return f"{BASE_URL}/{quote(self._api_key, safe='')}/{SERVICE}/json/{start}/{end}"
 
     async def _fetch_page(
         self, client: httpx.AsyncClient, start: int, end: int
     ) -> tuple[int, list[dict[str, Any]]]:
-        url = f"{BASE_URL}/{quote(self._api_key, safe='')}/{SERVICE}/json/{start}/{end}"
         try:
-            resp = await client.get(url)
+            resp = await client.get(self._url(start, end))
         except httpx.HTTPError as exc:
             # httpx 예외 메시지에는 URL(=키)이 들어갈 수 있으므로 타입만 남긴다.
             raise CollectError(f"request failed: {type(exc).__name__}") from None
@@ -132,24 +166,29 @@ class FoodSafetyI0490Collector(Collector):
             data = resp.json()
         except ValueError:
             raise CollectError("response is not JSON") from None
+        return parse_page(data)
 
-        body = data.get(SERVICE) if isinstance(data, dict) else None
-        # 인증키 오류 등은 서비스 키 없이 최상위 RESULT로 오는 경우가 있다.
-        result = (body or {}).get("RESULT") or (
-            data.get("RESULT") if isinstance(data, dict) else None
-        )
-        code = (result or {}).get("CODE")
-        if code == CODE_NO_DATA:
-            return 0, []
-        if code != CODE_OK or not isinstance(body, dict):
-            msg = (result or {}).get("MSG", "")
-            raise CollectError(f"API result {code}: {msg}")
 
-        try:
-            total = int(body.get("total_count") or 0)
-        except (TypeError, ValueError):
-            raise CollectError("invalid total_count") from None
-        page = body.get("row") or []
-        if not isinstance(page, list):
-            raise CollectError("invalid row field")
-        return total, page
+def _result_code(data: Any) -> tuple[str | None, str]:
+    """(CODE, MSG). 인증키 오류 등은 서비스 키 없이 최상위 RESULT로 오는 경우가 있다."""
+    body = data.get(SERVICE) if isinstance(data, dict) else None
+    result = (body or {}).get("RESULT") or (data.get("RESULT") if isinstance(data, dict) else None)
+    return (result or {}).get("CODE"), (result or {}).get("MSG", "")
+
+
+def parse_page(data: Any) -> tuple[int, list[dict[str, Any]]]:
+    """(total_count, row 목록). INFO-200(데이터 없음)은 (0, []), 그 밖의 코드는 CollectError."""
+    code, msg = _result_code(data)
+    if code == CODE_NO_DATA:
+        return 0, []
+    body = data.get(SERVICE) if isinstance(data, dict) else None
+    if code != CODE_OK or not isinstance(body, dict):
+        raise CollectError(f"API result {code}: {msg}")
+    try:
+        total = int(body.get("total_count") or 0)
+    except (TypeError, ValueError):
+        raise CollectError("invalid total_count") from None
+    page = body.get("row") or []
+    if not isinstance(page, list):
+        raise CollectError("invalid row field")
+    return total, page

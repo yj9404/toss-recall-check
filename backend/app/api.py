@@ -28,6 +28,7 @@ class SourceStatus:
     last_success_at: datetime | None = None
     last_error_at: datetime | None = None
     last_row_count: int | None = None
+    skipped_count: int | None = None
 
 
 class CategoryOut(BaseModel):
@@ -63,6 +64,7 @@ class Detail(Summary):
     model_text: str | None
     consumer_tips: str | None
     recall_period_text: str | None
+    contact_text: str | None
     last_seen_at: str
 
 
@@ -115,6 +117,7 @@ def _detail(item: Item, settings: Settings) -> Detail:
         model_text=item.model_text,
         consumer_tips=item.consumer_tips,
         recall_period_text=item.recall_period_text,
+        contact_text=item.contact_text,
         last_seen_at=_iso(item.last_seen_at),
     )
 
@@ -210,6 +213,8 @@ async def healthz(request: Request) -> dict:
                 "last_success_at": _iso(s.last_success_at) if s.last_success_at else None,
                 "last_error_at": _iso(s.last_error_at) if s.last_error_at else None,
                 "last_row_count": s.last_row_count,
+                # 공표일 등이 없어 받지 않은 건수. 0이 아니면 그만큼 화면에 나오지 않는다.
+                "skipped_count": s.skipped_count,
             }
             for source, s in sorted(request.app.state.source_status.items())
         ],
@@ -247,14 +252,17 @@ def record_source_status(app, results: list[SourceResult]) -> None:
         if r.status == "ok":
             state.last_success_at = now
             state.last_row_count = r.row_count
+            state.skipped_count = r.skipped_count
         else:
             state.last_error_at = now
 
 
-async def collect_and_reload(app, collectors: list[Collector]) -> list[SourceResult] | None:
+async def collect_and_reload(
+    app, collectors: list[Collector], full: bool = False
+) -> list[SourceResult] | None:
     """수집 후 스냅샷을 다시 읽어 통째로 교체한다. 다른 곳에서 수집 중이면 None."""
     settings: Settings = app.state.settings
-    results = await run_collection(app.state.pool, collectors, settings.secret_values())
+    results = await run_collection(app.state.pool, collectors, settings.secret_values(), full)
     if results is not None:
         record_source_status(app, results)
         app.state.snapshot = await load_snapshot(app.state.pool, settings)
@@ -265,18 +273,26 @@ async def collect_and_reload(app, collectors: list[Collector]) -> list[SourceRes
 async def trigger_collect(
     request: Request,
     source: str | None = None,
+    full: bool = False,
 ) -> dict:
+    """full=true면 성공 기록을 무시하고 첫 수집 범위로 다시 받는다 (CLI의 --full)."""
     settings = _settings(request)
     try:
         collectors = select_collectors(settings, source)
     except ValueError:
         raise HTTPException(400, "unknown source") from None
-    results = await collect_and_reload(request.app, collectors)
+    results = await collect_and_reload(request.app, collectors, full)
     if results is None:
         return {"ran": False, "results": []}
     return {
         "ran": True,
         "results": [
-            {"source": r.source, "status": r.status, "row_count": r.row_count} for r in results
+            {
+                "source": r.source,
+                "status": r.status,
+                "row_count": r.row_count,
+                "skipped_count": r.skipped_count,
+            }
+            for r in results
         ],
     }

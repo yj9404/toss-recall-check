@@ -6,7 +6,7 @@ import pytest
 
 from app import collect
 from app.collectors import CollectError, Collector, log_skipped_sources, select_collectors
-from app.collectors.base import KST
+from app.collectors.base import KST, FetchResult, ProbeResult
 from app.collectors.consumer24 import MENU_CATEGORIES
 from tests.conftest import make_settings
 
@@ -15,23 +15,29 @@ class FakeCollector(Collector):
     source = "fake"
     categories = ("food",)
 
-    def __init__(self, exc: Exception | None = None, records=()):
+    def __init__(self, exc: Exception | None = None, records=(), skipped: int = 0):
         self._exc = exc
         self._records = list(records)
+        self._skipped = skipped
         self.seen_last_success_at = "not called"
 
     async def fetch(self, last_success_at=None):
         self.seen_last_success_at = last_success_at
         if self._exc:
             raise self._exc
-        return self._records
+        return FetchResult(self._records, self._skipped)
+
+    async def probe(self):
+        return ProbeResult(self.source, ok=True)
 
 
-def test_run_one_success(fake_db):
-    result = asyncio.run(collect._run_one(None, FakeCollector(), []))
-    assert result.status == "ok"
-    assert fake_db["success"] == [("fake", 0)]
+def test_run_one_success_records_skipped_count(fake_db, caplog):
+    with caplog.at_level(logging.INFO):
+        result = asyncio.run(collect._run_one(None, FakeCollector(skipped=7), []))
+    assert (result.status, result.row_count, result.skipped_count) == ("ok", 0, 7)
+    assert fake_db["success"] == [("fake", 0, 7)]
     assert fake_db["error"] == []
+    assert any("fake: upserted 0 rows, skipped 7" in r.getMessage() for r in caplog.records)
 
 
 def test_run_one_passes_last_success_to_fetch(fake_db):
@@ -40,6 +46,13 @@ def test_run_one_passes_last_success_to_fetch(fake_db):
     collector = FakeCollector()
     asyncio.run(collect._run_one(None, collector, []))
     assert collector.seen_last_success_at == last
+
+
+def test_run_one_full_ignores_last_success(fake_db):
+    fake_db["last_success"]["fake"] = datetime(2026, 10, 19, 9, 0, tzinfo=KST)
+    collector = FakeCollector()
+    asyncio.run(collect._run_one(None, collector, [], full=True))
+    assert collector.seen_last_success_at is None
 
 
 def test_run_one_failure_records_redacted_error_and_skips_upsert(fake_db):
@@ -70,6 +83,20 @@ def test_default_collectors_follow_enabled_categories():
         "foodsafety_i0490",
         "consumer24_0301",
     ]
+
+
+def test_overseas_menu_uses_its_own_window():
+    settings = make_settings(
+        consumer24_key_0101="k1",
+        consumer24_key_0501="k5",
+        snapshot_days=1095,
+        consumer24_overseas_days=180,
+    )
+    today = datetime.now(KST).date()
+    windows = {
+        c.source: (today - c.since(None)).days for c in select_collectors(settings, "consumer24")
+    }
+    assert windows == {"consumer24_0101": 1095, "consumer24_0501": 180}
 
 
 def test_consumer24_menus_without_key_are_not_built():

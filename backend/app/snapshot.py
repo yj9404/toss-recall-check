@@ -41,6 +41,7 @@ class Item:
     model_text: str | None
     consumer_tips: str | None
     recall_period_text: str | None
+    contact_text: str | None
     registered_at: datetime
     last_seen_at: datetime
     search_key: str = field(repr=False)
@@ -71,6 +72,7 @@ def _to_item(row: Mapping[str, Any]) -> Item:
         model_text=row.get("model_text"),
         consumer_tips=row.get("consumer_tips"),
         recall_period_text=row.get("recall_period_text"),
+        contact_text=row.get("contact_text"),
         registered_at=row["registered_at"].astimezone(KST),
         last_seen_at=row["last_seen_at"].astimezone(KST),
         search_key=search_key,
@@ -133,6 +135,9 @@ class Snapshot:
 
 async def load_snapshot(pool: AsyncConnectionPool, settings: Settings) -> Snapshot:
     rows = await db.fetch_snapshot_rows(
-        pool, settings.snapshot_days, settings.enabled_category_list
+        pool,
+        settings.snapshot_days,
+        settings.enabled_category_list,
+        settings.consumer24_overseas_days,
     )
     return Snapshot(rows)

@@ -31,10 +31,15 @@ def test_recalls_list_from_fixture(make_client, fixture_rows):
     assert first["source_label"] == "식품의약품안전처 식품안전나라"
     assert first["category_label"] == "식품"
     assert first["grade"] == 3
-    assert first["thumbnail"] == "/api/v1/image?u=" + quote(
+    # 식품안전나라 이미지 호스트는 기본 허용목록에 없어 thumbnail이 null이다 (로그인 페이지로 302).
+    assert [i["thumbnail"] for i in body["items"]] == [None, None, None]
+
+    client = make_client(fixture_rows, image_host_allowlist="coop.foodsafetykorea.go.kr")
+    items = client.get("/api/v1/recalls").json()["items"]
+    assert items[0]["thumbnail"] == "/api/v1/image?u=" + quote(
         "http://coop.foodsafetykorea.go.kr/open/minfo_image.do?fSeq=2681127", safe=""
     )
-    no_image = next(i for i in body["items"] if i["id"] == 2)
+    no_image = next(i for i in items if i["id"] == 2)
     assert no_image["thumbnail"] is None
 
 
@@ -99,8 +104,7 @@ def test_recall_detail(make_client, fixture_rows):
     assert body["barcode"] == "8809520491483"
     assert body["manufactured_text"] == "(제조일자) 2026-10-05"
     assert body["expiry_text"] == "(소비기한) 2026-10-19"
-    assert len(body["images"]) == 3
-    assert all(u.startswith("/api/v1/image?u=") for u in body["images"])
+    assert body["images"] == []  # 기본 허용목록 밖
     assert body["source_label"] == "식품의약품안전처 식품안전나라"
     assert body["last_seen_at"].endswith("+09:00")
     assert "raw" not in body
@@ -108,9 +112,15 @@ def test_recall_detail(make_client, fixture_rows):
     assert body["model_text"] is None
     assert body["consumer_tips"] is None
     assert body["recall_period_text"] is None
+    assert body["contact_text"] is None
 
     assert client.get("/api/v1/recalls/999").status_code == 404
     assert client.get("/api/v1/recalls/abc").status_code == 422
+
+    client = make_client(fixture_rows, image_host_allowlist="coop.foodsafetykorea.go.kr")
+    images = client.get("/api/v1/recalls/1").json()["images"]
+    assert len(images) == 3
+    assert all(u.startswith("/api/v1/image?u=") for u in images)
 
 
 def test_consumer24_detail_fields(make_client):
@@ -126,6 +136,8 @@ def test_consumer24_detail_fields(make_client):
     assert product["model_text"] == "핑크풋 슬라임"
     assert product["consumer_tips"].startswith("ㅇ 해당 제품을 보유하고 있는 소비자는")
     assert product["recall_period_text"] is None
+    assert product["address"] is None
+    assert product["contact_text"] is None
     # 소비자24 이미지 호스트는 기본 허용목록에 있다.
     assert product["images"][0] == "/api/v1/image?u=" + quote(
         "https://www.consumer.go.kr/openapi/recall/contents/recallApiImage.do?atchmnflId=10578512",
@@ -139,6 +151,8 @@ def test_consumer24_detail_fields(make_client):
     assert vehicle["model_text"] == "아반떼 (HD), i30 (FD)"
     assert vehicle["consumer_tips"] is None
     assert vehicle["recall_period_text"] == "20261014~"
+    assert vehicle["address"] is None
+    assert vehicle["contact_text"] == "현대자동차 대표번호 080-600-6000"
 
     # 이미지 호스트를 허용목록에서 빼면 응답에서 빠진다.
     client = make_client(rows, image_host_allowlist="coop.foodsafetykorea.go.kr")
@@ -212,12 +226,19 @@ def test_healthz_reads_memory_only(make_client, fixture_rows):
 
 def test_healthz_reports_last_collection_results(make_client):
     client = make_client()
-    record_source_status(client.app, [SourceResult("foodsafety_i0490", "ok", 7)])
+    record_source_status(
+        client.app,
+        [SourceResult("foodsafety_i0490", "ok", 7), SourceResult("consumer24_0207", "ok", 0, 113)],
+    )
     record_source_status(client.app, [SourceResult("foodsafety_i0490", "error")])
-    [src] = client.get("/healthz").json()["sources"]
-    assert src["source"] == "foodsafety_i0490"
-    assert src["last_success_at"] and src["last_error_at"]
-    assert src["last_row_count"] == 7  # 실패해도 마지막 성공 건수는 유지
+    sources = {s["source"]: s for s in client.get("/healthz").json()["sources"]}
+    fs = sources["foodsafety_i0490"]
+    assert fs["last_success_at"] and fs["last_error_at"]
+    assert fs["last_row_count"] == 7  # 실패해도 마지막 성공 건수는 유지
+    assert fs["skipped_count"] == 0
+    # 공표일이 없어 받지 않은 건수가 보인다.
+    device = sources["consumer24_0207"]
+    assert (device["last_row_count"], device["skipped_count"]) == (0, 113)
 
 
 def test_health_db_requires_admin_token(make_client):

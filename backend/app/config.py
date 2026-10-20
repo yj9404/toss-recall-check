@@ -22,9 +22,12 @@ class Settings(BaseSettings):
     collect_interval_minutes: int = Field(default=60, ge=1)
     snapshot_days: int = Field(default=1095, ge=1)
     hide_empty_days: int = Field(default=180, ge=1)
-    image_host_allowlist: str = "coop.foodsafetykorea.go.kr,www.consumer.go.kr"
+    # 식품안전나라 이미지(coop.foodsafetykorea.go.kr)는 로그인 페이지로 302가 나서 넣지 않는다.
+    image_host_allowlist: str = "www.consumer.go.kr"
 
     consumer24_lookback_days: int = Field(default=30, ge=1)
+    # 해외리콜(0501)만 SNAPSHOT_DAYS 대신 쓰는 수집·스냅샷 범위.
+    consumer24_overseas_days: int = Field(default=180, ge=1)
     # 소비자24 서비스키는 메뉴(cntntsId)마다 다르다. 비어 있는 메뉴는 수집하지 않는다.
     # 식품(0201)·축산물(0203)은 foodsafety_i0490과 겹쳐 받지 않으므로 항목이 없다.
     # 메뉴 목록은 app/collectors/consumer24.py의 MENU_CATEGORIES와 같아야 한다 (테스트로 확인).

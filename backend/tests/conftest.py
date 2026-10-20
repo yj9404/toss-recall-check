@@ -30,8 +30,8 @@ def fake_db(monkeypatch):
     async def upsert(conn, records):
         calls["upsert"].append(records)
 
-    async def success(conn, source, n):
-        calls["success"].append((source, n))
+    async def success(conn, source, n, skipped):
+        calls["success"].append((source, n, skipped))
 
     async def error(conn, source, message):
         calls["error"].append((source, message))

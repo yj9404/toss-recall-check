@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from app.collectors.base import RecallRecord
+from app.collectors.consumer24 import OVERSEAS_SOURCE
 from app.config import Settings
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema.sql"
@@ -56,6 +57,7 @@ _UPSERT_COLUMNS = (
     "model_text",
     "consumer_tips",
     "recall_period_text",
+    "contact_text",
     "registered_at",
     "raw",
 )
@@ -96,16 +98,19 @@ async def get_last_success_at(conn: AsyncConnection, source: str) -> datetime | 
     return row[0] if row else None
 
 
-async def record_success(conn: AsyncConnection, source: str, row_count: int) -> None:
+async def record_success(
+    conn: AsyncConnection, source: str, row_count: int, skipped_count: int
+) -> None:
     await conn.execute(
         """
-        INSERT INTO source_state (source, last_success_at, last_row_count)
-        VALUES (%s, now(), %s)
+        INSERT INTO source_state (source, last_success_at, last_row_count, skipped_count)
+        VALUES (%s, now(), %s, %s)
         ON CONFLICT (source) DO UPDATE SET
             last_success_at = EXCLUDED.last_success_at,
-            last_row_count = EXCLUDED.last_row_count
+            last_row_count = EXCLUDED.last_row_count,
+            skipped_count = EXCLUDED.skipped_count
         """,
-        (source, row_count),
+        (source, row_count, skipped_count),
     )
 
 
@@ -128,19 +133,27 @@ async def ping(pool: AsyncConnectionPool) -> None:
 
 
 async def fetch_snapshot_rows(
-    pool: AsyncConnectionPool, days: int, categories: list[str]
+    pool: AsyncConnectionPool, days: int, categories: list[str], overseas_days: int
 ) -> list[dict[str, Any]]:
+    """최근 days일 안에 등록된 행. 소비자24 해외리콜(0501)만 overseas_days일로 더 좁힌다."""
     async with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
             SELECT id, source, category, product_name, company_name, reason, grade,
                    manufactured_text, expiry_text, package_unit, recall_method, address,
                    barcode, image_urls, source_url, source_label, model_text, consumer_tips,
-                   recall_period_text, registered_at, last_seen_at
+                   recall_period_text, contact_text, registered_at, last_seen_at
             FROM recalls
-            WHERE registered_at >= now() - make_interval(days => %s)
-              AND category = ANY(%s)
+            WHERE registered_at >= now() - make_interval(days => %(days)s)
+              AND category = ANY(%(categories)s)
+              AND (source <> %(overseas_source)s
+                   OR registered_at >= now() - make_interval(days => %(overseas_days)s))
             """,
-            (days, categories),
+            {
+                "days": days,
+                "categories": categories,
+                "overseas_source": OVERSEAS_SOURCE,
+                "overseas_days": overseas_days,
+            },
         )
         return await cur.fetchall()

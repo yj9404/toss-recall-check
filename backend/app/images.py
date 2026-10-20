@@ -61,7 +61,10 @@ def proxy_url(url: str) -> str:
 
 
 async def fetch_image(client: httpx.AsyncClient, url: str) -> tuple[bytes, str]:
-    """허용 호스트 검사가 끝난 URL만 넘긴다. 실패하면 UpstreamError(502/504)."""
+    """허용 호스트 검사가 끝난 URL만 넘긴다.
+
+    실패하면 UpstreamError: 빈 본문 404, 시간 초과 504, 그 밖(원본 오류·이미지 아님·크기 초과) 502.
+    """
     try:
         async with asyncio.timeout(TIMEOUT_SECONDS):
             # 리다이렉트를 따라가면 허용목록 밖 호스트로 갈 수 있으므로 따라가지 않는다.
@@ -77,6 +80,10 @@ async def fetch_image(client: httpx.AsyncClient, url: str) -> tuple[bytes, str]:
                     if len(body) > MAX_BYTES:
                         raise UpstreamError(502)
                 data = bytes(body)
+                # 소비자24는 첨부가 깨진 이미지를 200 + 빈 본문으로 준다.
+                # 원본에 이미지가 없는 것으로 보고 404로 돌려준다.
+                if not data:
+                    raise UpstreamError(404)
                 content_type = sniff_image_type(data)
                 if content_type is None:
                     raise UpstreamError(502)

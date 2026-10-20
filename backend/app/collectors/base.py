@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -36,6 +37,8 @@ class RecallRecord(BaseModel):
     model_text: str | None = None
     consumer_tips: str | None = None
     recall_period_text: str | None = None
+    # 문의처 원문 (전화번호·홈페이지·주소가 섞여 있다).
+    contact_text: str | None = None
     registered_at: datetime
     raw: dict[str, Any] = Field(default_factory=dict)
 
@@ -54,6 +57,28 @@ class RecallRecord(BaseModel):
         return value
 
 
+@dataclass
+class FetchResult:
+    records: list[RecallRecord]
+    # 키·등록일(공표일)이 없어 받지 않은 건수. source_state와 /healthz에 남는다.
+    skipped_count: int = 0
+
+
+@dataclass
+class ProbeResult:
+    """출처 API를 1건만 호출해 본 결과 (python -m app.check_sources)."""
+
+    source: str
+    ok: bool
+    http_status: int | None = None
+    code: str | None = None
+    total: int | None = None
+    elapsed_ms: int = 0
+    # 예외 타입 등. 요청 URL(=API 키)은 넣지 않는다.
+    error: str | None = None
+    image_urls: list[str] = field(default_factory=list)
+
+
 class Collector(ABC):
     # source_state의 키. 수집 결과(성공·실패)는 source 단위로 기록된다.
     source: str
@@ -66,8 +91,12 @@ class Collector(ABC):
         return self.source
 
     @abstractmethod
-    async def fetch(self, last_success_at: datetime | None = None) -> list[RecallRecord]:
+    async def fetch(self, last_success_at: datetime | None = None) -> FetchResult:
         """last_success_at: 이 source의 마지막 성공 시각 (없으면 None). 증분 수집에 쓴다."""
+
+    @abstractmethod
+    async def probe(self) -> ProbeResult:
+        """1건만 호출해 HTTP 상태·결과코드·응답 시간을 본다. 예외를 던지지 않는다."""
 
 
 def clean_text(value: Any) -> str | None:
