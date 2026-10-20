@@ -6,6 +6,8 @@ const MIN_VERSION = '5.241.0' as const
 type InitState = 'ready' | 'failed'
 
 let initPromise: Promise<InitState> | null = null
+// 초기화가 끝난 뒤 다시 마운트되면(홈 복원) 첫 렌더부터 배너 자리를 잡아 스크롤 위치가 밀리지 않게 한다
+let initResult: InitState | null = null
 
 function isBannerSupported(): boolean {
   try {
@@ -36,7 +38,7 @@ function initTossAds(): Promise<InitState> {
       console.error('Toss Ads 초기화 실패:', e)
       resolve('failed')
     }
-  })
+  }).then((s) => (initResult = s))
   return initPromise
 }
 
@@ -47,7 +49,7 @@ function initTossAds(): Promise<InitState> {
 export function useTossBanner(adGroupId: string | null) {
   const ref = useRef<HTMLDivElement>(null)
   const [supported] = useState(isBannerSupported)
-  const [state, setState] = useState<InitState | 'pending'>('pending')
+  const [state, setState] = useState<InitState | 'pending'>(() => initResult ?? 'pending')
   const enabled = supported && adGroupId !== null
 
   useEffect(() => {
