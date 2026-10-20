@@ -11,6 +11,7 @@ source는 consumer24_<cntntsId>이고, --source consumer24는 메뉴 전체를 �
 값은 모두 CDATA이고 빈 값은 <![CDATA[]]>다. 자동차 결함 내용 등 일부 필드는 HTML 조각이다.
 목록은 공표일이 아니라 recallSn 역순이다.
 요청 변수 recallPublictBgnde는 "공표 시작일이 이 날짜 이후"로 걸러 준다.
+해외리콜(0501)로 요청하면 항목의 cntntsId에 하위 분류 0502·0503·0504가 섞여 온다.
 """
 
 import asyncio
@@ -157,13 +158,16 @@ def recall_method(value: Any) -> str | None:
     return text
 
 
-def normalize_item(item: dict[str, str]) -> RecallRecord | None:
-    """content 하나를 RecallRecord로 바꾼다. recallSn·메뉴·공표일이 없으면 None."""
+def normalize_item(item: dict[str, str], menu_id: str) -> RecallRecord | None:
+    """menu_id로 요청해 받은 content 하나를 RecallRecord로 바꾼다. recallSn·공표일이 없으면 None.
+
+    category와 source는 항목의 cntntsId가 아니라 요청한 메뉴로 정한다. 해외리콜(0501)은
+    하위 분류인 0502·0503·0504가 섞여 오기 때문이다. 항목의 cntntsId는 raw에 남는다.
+    """
+    category = MENU_CATEGORIES[menu_id]
     source_id = clean_text(item.get("recallSn"))
-    menu_id = clean_text(item.get("cntntsId")) or ""
-    category = MENU_CATEGORIES.get(menu_id)
     registered_at = parse_yyyymmdd(item.get("recallPublictBgnde"))
-    if source_id is None or category is None or registered_at is None:
+    if source_id is None or registered_at is None:
         return None
     return RecallRecord(
         source=f"{NAME}_{menu_id}",
@@ -264,7 +268,7 @@ class Consumer24Collector(Collector):
         records: dict[str, RecallRecord] = {}
         invalid = 0
         for item in items:
-            record = normalize_item(item)
+            record = normalize_item(item, self.menu_id)
             if record is None:
                 invalid += 1
             else:

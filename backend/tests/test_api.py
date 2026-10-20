@@ -127,7 +127,8 @@ def test_consumer24_detail_fields(make_client):
     rows = []
     for name in ("consumer24_0101.xml", "consumer24_0301.xml"):
         _, items = consumer24.parse_response((FIXTURES / name).read_bytes())
-        rows.append(record_to_row(len(rows) + 1, consumer24.normalize_item(items[0])))
+        menu = name.removeprefix("consumer24_").removesuffix(".xml")
+        rows.append(record_to_row(len(rows) + 1, consumer24.normalize_item(items[0], menu)))
     client = make_client(rows)
 
     product = client.get("/api/v1/recalls/1").json()

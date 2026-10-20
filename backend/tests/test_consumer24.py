@@ -105,7 +105,7 @@ def test_parse_unexpected_body_raises(body):
 
 def test_normalize_consumer_product_item():
     item = _items("consumer24_0101.xml")[0]
-    record = normalize_item(item)
+    record = normalize_item(item, "0101")
     assert record is not None
     assert record.source == "consumer24_0101"
     assert record.source_id == "RCLL_000000000607750"
@@ -145,7 +145,7 @@ def test_normalize_consumer_product_item():
 
 def test_normalize_vehicle_item_strips_html():
     item = _items("consumer24_0301.xml")[0]
-    record = normalize_item(item)
+    record = normalize_item(item, "0301")
     assert record is not None
     assert record.source == "consumer24_0301"
     assert record.category == "vehicle"
@@ -180,7 +180,7 @@ def test_normalize_fallbacks():
         "infoOriginInstt": "",
         "infoOriginInsttUrl": "",
     }
-    record = normalize_item(item)
+    record = normalize_item(item, "0101")
     assert record is not None
     assert record.company_name == "제조사"
     assert record.reason == "결함 내용"
@@ -192,15 +192,22 @@ def test_normalize_fallbacks():
     "override",
     [
         {"recallSn": ""},
-        {"cntntsId": "0201"},  # 식품은 받지 않는다
-        {"cntntsId": "0203"},  # 축산물도
         {"recallPublictBgnde": ""},
         {"recallPublictBgnde": "2026091"},
         {"recallPublictBgnde": "20261340"},
     ],
 )
-def test_normalize_skips_items_without_id_menu_or_date(override):
-    assert normalize_item({**_items("consumer24_0101.xml")[0], **override}) is None
+def test_normalize_skips_items_without_id_or_date(override):
+    assert normalize_item({**_items("consumer24_0101.xml")[0], **override}, "0101") is None
+
+
+def test_category_and_source_follow_requested_menu():
+    # 해외리콜(0501)로 요청하면 하위 분류 cntntsId(0502·0503·0504)가 섞여 온다.
+    item = {**_items("consumer24_0101.xml")[0], "cntntsId": "0502"}
+    record = normalize_item(item, "0501")
+    assert record is not None
+    assert (record.source, record.category) == ("consumer24_0501", "overseas")
+    assert record.raw["cntntsId"] == "0502"
 
 
 @pytest.mark.parametrize(
@@ -226,7 +233,7 @@ def test_parse_barcode(value, expected):
 
 def test_normalize_keeps_raw_barcode_text():
     item = {**_items("consumer24_0101.xml")[0], "stdBrcd": "8809184004260,8809184001214"}
-    record = normalize_item(item)
+    record = normalize_item(item, "0101")
     assert record is not None
     assert record.barcode == "8809184004260"
     assert record.raw["stdBrcd"] == "8809184004260,8809184001214"
@@ -295,7 +302,7 @@ def test_recall_period(begin, end, expected):
 
 
 def test_record_is_json_serializable():
-    record = normalize_item(_items("consumer24_0301.xml")[0])
+    record = normalize_item(_items("consumer24_0301.xml")[0], "0301")
     assert record is not None
     json.dumps(record.model_dump(mode="json"), ensure_ascii=False)
 
@@ -419,6 +426,20 @@ def test_incremental_fetch_sends_publication_start_date(
     assert params["recallPublictBgnde"] == expected
     assert params["cntntsId"] == "0301"
     assert "recallPublictEndde" not in params
+
+
+def test_overseas_sub_menu_items_are_kept():
+    root = ET.fromstring(_page("consumer24_0101.xml", 3, 0, 3))
+    for content, sub in zip(
+        root.iterfind("channel/return/content"), ("0502", "0503", "0504"), strict=True
+    ):
+        content.find("cntntsId").text = sub
+    body = ET.tostring(root, encoding="utf-8")
+    handler = _api(lambda r: _xml(body), total=3, dated=3)
+    result = asyncio.run(_collector("0501", "key-0501", handler, window_days=180).fetch(None))
+    assert len(result.records) == 3
+    assert result.skipped_count == 0
+    assert {(r.source, r.category) for r in result.records} == {("consumer24_0501", "overseas")}
 
 
 def test_undated_items_are_counted_as_skipped():

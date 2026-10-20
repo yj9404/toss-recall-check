@@ -168,6 +168,7 @@ Detail의 `model_text`(모델명), `consumer_tips`(소비자 행동 요령), `re
 - 일부 필드(자동차 결함 내용 등)가 HTML 조각이라 알려진 태그만 지우고 `<br>`·`</p>`는 줄바꿈으로 바꾼다. `<대상차량별 생산일자>`처럼 꺾쇠로 감싼 본문은 남긴다. `raw`에는 원문 그대로 둔다.
 - `stdBrcd`에서 처음 나오는 13자리 숫자를 `barcode`로 쓴다 (`a, b`·`a / b`처럼 여러 개면 첫 번째). `recallImgUrls`는 쉼표로 나눈다.
 - `registered_at`은 `recallPublictBgnde`(yyyyMMdd)의 Asia/Seoul 자정이다. 공표일이 없는 항목은 건너뛴다.
+- category와 source는 항목의 `cntntsId`가 아니라 요청한 메뉴로 정한다. 해외리콜(0501)로 요청하면 하위 분류 `0502`·`0503`·`0504`가 섞여 온다 (180일치 중 약 2/3). 항목의 `cntntsId`는 `raw`에 남는다.
 - `recallProcssInfo`가 "인증번호"로 시작하면 `recall_method`에 넣지 않는다 (공산품은 대부분 "인증번호: CB…"라 회수 방법이 아니다).
 - `recallEntrpsInfo`는 주소보다 전화번호·홈페이지가 많아 `address`가 아니라 `contact_text`에 넣는다. 소비자24 항목의 `address`는 null이다.
 - `source_url`은 `infoOriginInsttUrl`이다. 문서의 `infoOriginUrl`과 이름이 다르고, 건별 링크가 아니라 기관 홈페이지 주소다.
