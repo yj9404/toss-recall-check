@@ -10,7 +10,7 @@ src/
   api/        types.ts(응답 타입) · client.ts(fetch 호출은 여기 한 곳, 실패 시 ApiError에 상태 코드)
   lib/        format(등록일·빈 값) · detail(상세 항목 순서) · barcode · pagination · ads(광고 ID) · analytics · anonymousKey
   hooks/      useAsync · useRecallList(20건씩 이어 붙이기) · useTossBanner(광고 초기화 1회, 화면 이탈 시 destroy)
-  components/ RecallCard · BannerAd · ErrorView · ListSkeleton · Disclaimer
+  components/ RecallCard · DetailImages · BannerAd · ErrorView · ListSkeleton · Disclaimer
   pages/      HomePage(/) · RecallDetailPage(/recall/:id) · BarcodePage(/barcode)
 ```
 
@@ -64,6 +64,6 @@ npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제�
 
 - 라이트 모드 전용, 핀치 줌 비활성화(viewport meta), Safe Area 반영.
 - 첫 화면에서 로그인·알림 동의·팝업을 띄우지 않아요. 외부 링크와 iframe은 쓰지 않고 출처는 기관명 텍스트로만 보여줘요.
-- 값이 비었거나 `-`, `데이터없음`이면 그 항목을 숨겨요. 이미지는 값이 있을 때만 그려요.
+- 값이 비었거나 `-`, `데이터없음`이면 그 항목을 숨겨요. 이미지는 값이 있을 때만 그리고, 못 불러오면 그 이미지를 빼요(빈 영역·깨진 아이콘을 남기지 않아요).
 - 배너 광고: 홈 5번째 카드 뒤(5개 미만이면 목록 끝) 1곳만 둬요. 상세·바코드 화면에는 두지 않아요(비게임 출시 체크리스트: 배너는 스크롤 가능한 화면에만). `TossAds.initialize.isSupported()`가 false이거나 토스 앱 5.241.0 미만이면 영역 자체를 그리지 않아요.
 - 로그: 검색어 원문과 바코드 번호는 기록하지 않고 길이·결과 수·발견 여부만 기록해요. 식별키는 서버로 보내지 않아요.

@@ -81,9 +81,9 @@ body {
 
 .recall-card__thumb {
   flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: 12px;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
   object-fit: cover;
 }
 
@@ -184,16 +184,27 @@ body {
   padding: 0 20px 8px;
 }
 
+/* 첫 장은 너비 100%, 2장 이상이면 가로 스크롤로 한 장씩 넘긴다 */
 .detail-images {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 20px;
+  overflow-x: auto;
+  scroll-padding: 0 20px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.detail-images::-webkit-scrollbar {
+  display: none;
 }
 
 .detail-images img {
+  flex: 0 0 100%;
   width: 100%;
   border-radius: 12px;
+  scroll-snap-align: start;
 }
 
 .detail-rows {

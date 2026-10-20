@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { fetchRecall, imageUrl, isNotFound } from '../api/client'
 import type { RecallDetail } from '../api/types'
+import { DetailImages } from '../components/DetailImages'
 import { ErrorView, LoadFailedView } from '../components/ErrorView'
 import { GradeBadge } from '../components/GradeBadge'
 import { ListSkeleton } from '../components/ListSkeleton'
@@ -87,13 +88,7 @@ export function RecallDetailPage() {
         </Badge>
       </div>
 
-      {images.length > 0 && (
-        <div className="detail-images">
-          {images.map((src) => (
-            <img key={src} src={src} alt="" loading="lazy" onError={(e) => (e.currentTarget.hidden = true)} />
-          ))}
-        </div>
-      )}
+      <DetailImages srcs={images} alt={d.product_name} />
 
       <DetailRows rows={main} />
 
