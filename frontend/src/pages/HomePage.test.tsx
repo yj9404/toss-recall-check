@@ -42,7 +42,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-const lastQuery = () => (fetchRecalls.mock.calls.at(-1)?.[0] as { q?: string }).q
+const lastQuery = () => (fetchRecalls.mock.lastCall?.[0] as { q?: string }).q
 
 function renderHome() {
   const view = render(
