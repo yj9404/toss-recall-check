@@ -25,7 +25,6 @@ src/
 | `VITE_API_BASE_URL` | 백엔드 주소. 개발 서버에서 비우면 `http://localhost:8000` |
 | `VITE_ADS_MODE` | `test`(기본) 또는 `live`. `build:live`(mode=live)에서는 지정하지 않아도 `live` |
 | `VITE_AD_GROUP_HOME` | `live`일 때 쓰는 홈 배너의 실제 광고 그룹 ID. `.env.live`에 넣어요. 비어 있으면 배너를 그리지 않아요 |
-| `VITE_AD_GROUP_DETAIL` | 상세 화면 하단 배너의 광고 그룹 ID. 규칙은 `VITE_AD_GROUP_HOME`과 같아요 |
 
 운영 빌드의 `VITE_API_BASE_URL`은 `https://` 주소여야 해요(출시 체크리스트: API는 HTTPS만). 백엔드 CORS에도 미니앱 origin이 허용돼 있어야 해요.
 
@@ -64,5 +63,5 @@ npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제�
 - 라이트 모드 전용, 핀치 줌 비활성화(viewport meta), Safe Area 반영.
 - 첫 화면에서 로그인·알림 동의·팝업을 띄우지 않아요. 외부 링크와 iframe은 쓰지 않고 출처는 기관명 텍스트로만 보여줘요.
 - 값이 비었거나 `-`, `데이터없음`이면 그 항목을 숨겨요. 이미지는 값이 있을 때만 그려요.
-- 배너 광고: 홈 5번째 카드 뒤(5개 미만이면 목록 끝) 1곳만 둬요. 상세·바코드 화면에는 없어요. `TossAds.initialize.isSupported()`가 false이거나 토스 앱 5.241.0 미만이면 영역 자체를 그리지 않아요.
+- 배너 광고: 홈 5번째 카드 뒤(5개 미만이면 목록 끝) 1곳만 둬요. 상세·바코드 화면에는 두지 않아요(비게임 출시 체크리스트: 배너는 스크롤 가능한 화면에만). `TossAds.initialize.isSupported()`가 false이거나 토스 앱 5.241.0 미만이면 영역 자체를 그리지 않아요.
 - 로그: 검색어 원문과 바코드 번호는 기록하지 않고 길이·결과 수·발견 여부만 기록해요. 식별키는 서버로 보내지 않아요.

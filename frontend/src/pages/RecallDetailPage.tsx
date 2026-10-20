@@ -4,12 +4,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { fetchRecall, imageUrl, isNotFound } from '../api/client'
 import type { RecallDetail } from '../api/types'
-import { BannerAd } from '../components/BannerAd'
 import { ErrorView, LoadFailedView } from '../components/ErrorView'
 import { GradeBadge } from '../components/GradeBadge'
 import { ListSkeleton } from '../components/ListSkeleton'
 import { useAsync } from '../hooks/useAsync'
-import { detailAdGroupId } from '../lib/ads'
 import { logClick, logScreen } from '../lib/analytics'
 import { formatRegisteredAt, hasValue } from '../lib/format'
 
@@ -110,11 +108,6 @@ export function RecallDetailPage() {
         <Button display="full" variant="weak" size="large" loading={sharing} onClick={() => share(d)}>
           공유하기
         </Button>
-      </div>
-
-      {/* 회수 정보를 다 읽은 뒤에 보이도록 맨 아래에 둔다 */}
-      <div className="section">
-        <BannerAd adGroupId={detailAdGroupId()} />
       </div>
     </main>
   )
