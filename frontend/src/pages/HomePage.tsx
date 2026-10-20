@@ -1,5 +1,5 @@
 import { Button, SearchField, Tab, Top } from '@toss/tds-mobile'
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BannerAd } from '../components/BannerAd'
 import { Disclaimer } from '../components/Disclaimer'
@@ -10,7 +10,8 @@ import { useCategories } from '../hooks/useCategories'
 import { useRecallList } from '../hooks/useRecallList'
 import { homeAdGroupId } from '../lib/ads'
 import { logClick, logScreen } from '../lib/analytics'
-import { getHomeSnapshot, saveHomeSnapshot } from '../lib/homeCache'
+import { OVERSEAS, orderCategories } from '../lib/categories'
+import { getHomeSnapshot, isOverseasNoticeSeen, markOverseasNoticeSeen, saveHomeSnapshot } from '../lib/homeCache'
 
 const AD_AFTER = 5
 
@@ -24,7 +25,8 @@ export function HomePage() {
   // 검색 버튼으로 시작된 조회만 결과 수를 기록한다
   const logSearchRef = useRef<{ category: string; length: number } | null>(null)
 
-  const tabs = useCategories()
+  const categories = useCategories()
+  const tabs = useMemo(() => orderCategories(categories), [categories])
   const list = useRecallList(
     category,
     query,
@@ -75,6 +77,7 @@ export function HomePage() {
     if (code === category) return
     logClick('category_tab_click', { category: code || 'all' })
     logSearchRef.current = null
+    if (category === OVERSEAS) markOverseasNoticeSeen()
     setCategory(code)
   }
 
@@ -110,6 +113,7 @@ export function HomePage() {
       </div>
 
       {tabs.length > 0 && (
+        // fluid: 탭이 많으면 가로 스크롤되고, 선택한 탭이 화면 밖이면 TDS가 탭 줄만 스크롤해 보이게 한다
         <Tab fluid size="small" onChange={selectTab} ariaLabel="카테고리">
           {[{ code: '', label: '전체' }, ...tabs].map((c, i) => (
             <Tab.Item key={c.code} selected={selectedTab === i}>
@@ -117,6 +121,10 @@ export function HomePage() {
             </Tab.Item>
           ))}
         </Tab>
+      )}
+
+      {category === OVERSEAS && !isOverseasNoticeSeen() && (
+        <p className="tab-notice">해외 기관이 발표한 리콜이에요. 국내에서 팔리지 않는 제품도 있어요.</p>
       )}
 
       {list.status === 'loading' ? (

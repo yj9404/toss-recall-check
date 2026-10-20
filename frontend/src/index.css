@@ -248,3 +248,10 @@ body {
   line-height: 1.6;
   white-space: pre-line;
 }
+
+.tab-notice {
+  margin: 12px 20px 0;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.5;
+}

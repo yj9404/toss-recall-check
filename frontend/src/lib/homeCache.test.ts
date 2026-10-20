@@ -3,6 +3,8 @@ import type { RecallSummary } from '../api/types'
 import {
   getCachedCategories,
   getHomeSnapshot,
+  isOverseasNoticeSeen,
+  markOverseasNoticeSeen,
   resetHomeCache,
   saveHomeSnapshot,
   setCachedCategories,
@@ -31,5 +33,13 @@ describe('홈 복원 캐시', () => {
     expect(getCachedCategories()).toHaveLength(1)
     resetHomeCache()
     expect(getCachedCategories()).toBeNull()
+  })
+
+  it('해외 탭 안내는 본 것으로 표시하면 다시 보이지 않고, 초기화하면 다시 보인다', () => {
+    expect(isOverseasNoticeSeen()).toBe(false)
+    markOverseasNoticeSeen()
+    expect(isOverseasNoticeSeen()).toBe(true)
+    resetHomeCache()
+    expect(isOverseasNoticeSeen()).toBe(false)
   })
 })
