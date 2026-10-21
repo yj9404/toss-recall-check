@@ -106,6 +106,31 @@ describe('바코드 사진 판독', () => {
     expect(logged()).toContainEqual({ log_name: 'barcode_scan_result', success: false })
   })
 
+  it('다시 찍어 판독에 실패하면 이전 번호와 결과를 지운다', async () => {
+    decode.mockResolvedValueOnce(CODE).mockResolvedValueOnce(null)
+    const input = renderPage()
+    const camera = screen.getByRole('button', { name: '카메라로 찍기' })
+    fireEvent.click(camera)
+    expect(await screen.findByText('회수·판매중지 목록에서 찾지 못했어요')).toBeTruthy()
+    expect(input.value).toBe(CODE)
+
+    fireEvent.click(camera)
+    expect(await screen.findByText(FAILED)).toBeTruthy()
+    expect(input.value).toBe('')
+    expect(screen.queryByText('회수·판매중지 목록에서 찾지 못했어요')).toBeNull()
+    expect(fetchBarcode).toHaveBeenCalledTimes(1)
+  })
+
+  it('촬영을 취소하면 입력해 둔 번호는 그대로 둔다', async () => {
+    openCamera.mockRejectedValue(new Error('cancelled'))
+    const input = renderPage()
+    fireEvent.change(input, { target: { value: CODE } })
+    fireEvent.click(screen.getByRole('button', { name: '카메라로 찍기' }))
+    await waitFor(() => expect(openCamera).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByRole('button', { name: '카메라로 찍기' })).toHaveProperty('disabled', false))
+    expect(input.value).toBe(CODE)
+  })
+
   it('판독 모듈을 불러오지 못해도 실패 안내를 보여준다', async () => {
     decode.mockRejectedValue(new Error('image load failed'))
     renderPage()

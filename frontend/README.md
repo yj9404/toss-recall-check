@@ -35,7 +35,7 @@ src/
 | `VITE_ADS_MODE` | `test`(기본) 또는 `live`. `build:live`(mode=live)에서는 지정하지 않아도 `live` |
 | `VITE_AD_GROUP_HOME` | `live`일 때 쓰는 홈 배너의 실제 광고 그룹 ID. `.env.live`에 넣어요. 비어 있으면 배너를 그리지 않아요 |
 
-운영 빌드의 `VITE_API_BASE_URL`은 `https://` 주소여야 해요(출시 체크리스트: API는 HTTPS만). 백엔드 CORS에도 미니앱 origin이 허용돼 있어야 해요.
+운영 빌드의 `VITE_API_BASE_URL`은 `https://` 주소여야 해요(출시 체크리스트: API는 HTTPS만). `build`·`build:live`는 이 값이 비었거나 `https://`가 아니면 실패해요(빠진 채로 배포하면 API가 미니앱 호스트로 나가 403이 나요). 백엔드 CORS에도 미니앱 origin이 허용돼 있어야 해요.
 
 ## 명령
 

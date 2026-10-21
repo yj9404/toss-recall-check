@@ -72,6 +72,11 @@ export function BarcodePage() {
       setScan({ status: photo.status === 'denied' ? 'denied' : 'idle' })
       return
     }
+    // 새 사진을 받았으면 이전 번호·결과를 지운다. 판독에 실패했을 때 남은 번호가 이번 사진 것으로 보이지 않게 한다.
+    // 촬영·선택을 취소했을 때는 위에서 이미 돌아가므로 기존 번호가 그대로 남는다.
+    ctrlRef.current?.abort()
+    setBarcode('')
+    setResult({ status: 'idle' })
     setScan({ status: 'decoding', source })
     let code: string | null = null
     try {
