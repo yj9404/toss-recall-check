@@ -78,6 +78,16 @@ body {
   padding: 0 20px;
 }
 
+/* 홈: 검색창·바코드 버튼·탭·목록이 붙어 보이지 않게 세로 간격을 띄운다 */
+.home .section {
+  padding: 12px 20px;
+}
+
+.home .tabs {
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
 .recall-card {
   display: flex;
   gap: 12px;

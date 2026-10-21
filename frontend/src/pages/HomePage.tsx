@@ -102,7 +102,7 @@ export function HomePage() {
   const adIndex = Math.min(AD_AFTER, list.items.length) - 1
 
   return (
-    <main className="page">
+    <main className="page home">
       <Top title={<Top.TitleParagraph size={22}>회수·판매중지 제품을 확인해요</Top.TitleParagraph>} />
 
       <form className="search" onSubmit={submit}>
@@ -131,13 +131,15 @@ export function HomePage() {
 
       {tabs.length > 0 && (
         // fluid: 탭이 많으면 가로 스크롤되고, 선택한 탭이 화면 밖이면 TDS가 탭 줄만 스크롤해 보이게 한다
-        <Tab fluid size="small" onChange={selectTab} ariaLabel="카테고리">
-          {[{ code: '', label: '전체' }, ...tabs].map((c, i) => (
-            <Tab.Item key={c.code} selected={selectedTab === i}>
-              {c.label}
-            </Tab.Item>
-          ))}
-        </Tab>
+        <div className="tabs">
+          <Tab fluid size="small" onChange={selectTab} ariaLabel="카테고리">
+            {[{ code: '', label: '전체' }, ...tabs].map((c, i) => (
+              <Tab.Item key={c.code} selected={selectedTab === i}>
+                {c.label}
+              </Tab.Item>
+            ))}
+          </Tab>
+        </div>
       )}
 
       {category === OVERSEAS && !isOverseasNoticeSeen() && (
