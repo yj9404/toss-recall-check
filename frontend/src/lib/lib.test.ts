@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolveAdGroupId, TEST_BANNER_ID } from './ads'
 import { isValidBarcode, sanitizeBarcode } from './barcode'
-import { formatRegisteredAt, hasValue } from './format'
+import { formatRegisteredAt, formatRemaining, hasValue } from './format'
 import { appendPage } from './pagination'
 
 describe('바코드 입력 검증', () => {
@@ -64,5 +64,15 @@ describe('배너 광고 그룹 ID', () => {
     expect(resolveAdGroupId({ VITE_AD_GROUP_HOME: 'home-id' }, 'live')).toBe('home-id')
     expect(resolveAdGroupId({ VITE_ADS_MODE: 'live', VITE_AD_GROUP_HOME: ' ' }, 'live')).toBeNull()
     expect(resolveAdGroupId({}, 'live')).toBeNull()
+  })
+})
+
+describe('남은 시간 표시', () => {
+  it('시간·분으로 보여주고 1분 미만은 1분으로 올린다', () => {
+    const MIN = 60_000
+    expect(formatRemaining(24 * 60 * MIN)).toBe('24시간')
+    expect(formatRemaining(23 * 60 * MIN + 5 * MIN)).toBe('23시간 5분')
+    expect(formatRemaining(35 * MIN)).toBe('35분')
+    expect(formatRemaining(10_000)).toBe('1분')
   })
 })
