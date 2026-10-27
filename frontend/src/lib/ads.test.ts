@@ -211,6 +211,38 @@ describe('광고 제거 이용권', () => {
     expect(sdk.shows).toHaveLength(1)
   })
 
+  it('광고가 웹뷰를 덮는 동안 밀린 타이머가 이벤트보다 먼저 돌아도, 늦게 온 보상 이벤트로 이용권을 준다', async () => {
+    const ads = await freshAds()
+    ads.preloadAds()
+    await finishLoads()
+    let result: string | undefined
+    void ads.showAdFreeReward().then((r) => (result = r))
+    await flush()
+    const ad = lastShow()
+
+    // 광고를 보는 동안 웹뷰 JS가 멈춰 이벤트가 하나도 오지 않다가, 닫힌 뒤 밀린 타이머가 먼저 돈다
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(result).toBe('closed')
+    expect(ads.getAdsSnapshot().rewardShowing).toBe(false)
+
+    // 그다음 밀린 이벤트가 몰려 온다
+    ad.onEvent({ type: 'show' })
+    ad.onEvent({ type: 'userEarnedReward' })
+    ad.onEvent({ type: 'dismissed' })
+    expect(ads.isAdFreeActive()).toBe(true)
+    expect(ads.getAdsSnapshot().adFreeUntil).toBe(Date.now() + AD_FREE_PASS_MS)
+  })
+
+  it('SDK가 표시 실패를 알렸을 때만 failed다', async () => {
+    const ads = await freshAds()
+    ads.preloadAds()
+    await finishLoads()
+    const result = ads.showAdFreeReward()
+    await flush()
+    lastShow().onEvent({ type: 'failedToShow' })
+    await expect(result).resolves.toBe('failed')
+  })
+
   it('보상 전에 닫으면 이용권을 주지 않는다', async () => {
     const ads = await freshAds()
     ads.preloadAds()

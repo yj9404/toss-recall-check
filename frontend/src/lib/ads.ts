@@ -211,28 +211,45 @@ export function preloadAds(): void {
 
 // ─── 노출 ───
 
-/** 광고를 띄우고 닫히거나 실패하면 resolve한다. 실제로 화면에 떴으면 true. */
-function present(slot: FullScreenSlot, adGroupId: string, onReward?: () => void): Promise<boolean> {
+interface PresentResult {
+  /** show·impression 이벤트를 받았는지 */
+  shown: boolean
+  /** failed는 SDK가 실패를 알린 경우, timeout은 이벤트를 기다리다 사용자를 먼저 놓아준 경우 */
+  outcome: 'dismissed' | 'failed' | 'timeout'
+}
+
+/**
+ * 광고를 띄우고, 닫히거나 실패하거나 시간이 지나면 resolve한다.
+ * 광고가 웹뷰를 덮는 동안 JS가 멈춰 이벤트가 광고를 닫은 뒤에 몰려 올 수 있다. 그때는 밀린 타이머가 이벤트보다 먼저 돌 수 있으므로,
+ * 타이머는 기다리는 쪽만 놓아주고 구독은 종료 이벤트(dismissed·failedToShow·onError)까지 유지한다. 늦게 온 보상 이벤트도 그대로 반영된다.
+ */
+function present(slot: FullScreenSlot, adGroupId: string, onReward?: () => void): Promise<PresentResult> {
   showing = slot
   emit()
-  return new Promise<boolean>((resolve) => {
-    let done = false
+  return new Promise<PresentResult>((resolve) => {
+    let released = false
+    let ended = false
     let shown = false
     let cleanup: (() => void) | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
-    const finish = () => {
-      if (done) return
-      done = true
+    const release = (outcome: PresentResult['outcome']) => {
+      if (released) return
+      released = true
       clearTimeout(timer)
-      cleanup?.()
       showing = null
       // 한 번 보여준 광고는 다시 쓸 수 없어 새로 받아야 한다
       setLoadState(slot, 'idle')
-      resolve(shown)
+      resolve({ shown, outcome })
+    }
+    const end = (outcome: 'dismissed' | 'failed') => {
+      ended = true
+      cleanup?.()
+      release(outcome)
     }
     const arm = (ms: number) => {
+      if (released) return
       clearTimeout(timer)
-      timer = setTimeout(finish, ms)
+      timer = setTimeout(() => release('timeout'), ms)
     }
     arm(SHOW_START_TIMEOUT_MS)
     try {
@@ -250,27 +267,30 @@ function present(slot: FullScreenSlot, adGroupId: string, onReward?: () => void)
               onReward?.()
               break
             case 'dismissed':
-              finish()
+              end('dismissed')
               break
             case 'failedToShow':
               console.warn('광고 표시 실패', slot)
-              finish()
+              end('failed')
               break
+            default:
+              // requested·clicked 등 응답이 오고 있으면 광고가 진행 중이다
+              arm(SHOW_END_TIMEOUT_MS)
           }
         },
         onError: (error) => {
           console.warn('광고 표시 실패', slot, error)
-          finish()
+          end('failed')
         },
       })
-      if (done) cleanup()
+      if (ended) cleanup()
     } catch (e) {
       console.warn('광고 표시 실패', slot, e)
-      finish()
+      end('failed')
     }
-  }).then((shown) => {
+  }).then((result) => {
     preloadAds()
-    return shown
+    return result
   })
 }
 
@@ -301,7 +321,8 @@ export type RewardResult = 'earned' | 'closed' | 'failed'
 
 /**
  * 리워드 광고를 보여준다. 끝까지 봐서 보상 이벤트를 받았을 때만 광고 제거 이용권(지금부터 24시간)을 저장한다.
- * closed는 광고는 떴지만 보상 전에 닫은 경우, failed는 광고를 띄우지 못한 경우다.
+ * failed는 광고를 띄우지 못한 경우(미준비·SDK 실패)다. 보상 전에 닫았거나 이벤트를 기다리다 시간이 지난 경우는 closed다.
+ * 보상 이벤트가 resolve 뒤에 늦게 와도 이용권은 저장되고, 화면은 getAdsSnapshot 구독으로 바뀐다.
  */
 export async function showAdFreeReward(): Promise<RewardResult> {
   if (showing) return 'failed'
@@ -309,11 +330,12 @@ export async function showAdFreeReward(): Promise<RewardResult> {
   const adGroupId = groupId('reward')
   if (showing || !adGroupId || loadState.reward !== 'loaded' || !isFullScreenSupported()) return 'failed'
   let earned = false
-  const shown = await present('reward', adGroupId, () => {
+  const { shown, outcome } = await present('reward', adGroupId, () => {
     earned = true
     adFreeUntil = Date.now() + AD_FREE_PASS_MS
     writeNumber(AD_FREE_UNTIL_KEY, adFreeUntil)
     emit()
   })
-  return earned ? 'earned' : shown ? 'closed' : 'failed'
+  if (earned) return 'earned'
+  return outcome === 'failed' && !shown ? 'failed' : 'closed'
 }
