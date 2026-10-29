@@ -12,10 +12,8 @@ export const TEST_AD_GROUP_ID = {
  * 홈 배너 ID는 기존처럼 .env.live의 VITE_AD_GROUP_HOME에서 읽는다.
  */
 export const LIVE_AD_GROUP_ID = {
-  // TODO: 콘솔에서 발급한 전면형 광고 그룹 'recall_scan_interstitial'의 ID를 넣는다
-  interstitial: '',
-  // TODO: 콘솔에서 발급한 리워드 광고 그룹 'recall_adfree_reward'의 ID를 넣는다
-  reward: '',
+  interstitial: 'ait.v2.live.5c1f5b561d8f4ed2',
+  reward: 'ait.v2.live.84e064fe31184e54',
 }
 
 /** 앱 전체에서 전면광고 사이 최소 간격 */
