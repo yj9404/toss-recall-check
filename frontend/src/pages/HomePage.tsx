@@ -133,6 +133,8 @@ export function HomePage() {
         </Button>
       </div>
 
+      <AdFreePass />
+
       {tabs.length > 0 && (
         // fluid: 탭이 많으면 가로 스크롤되고, 선택한 탭이 화면 밖이면 TDS가 탭 줄만 스크롤해 보이게 한다
         <div className="tabs">
@@ -205,7 +207,6 @@ export function HomePage() {
         </>
       )}
 
-      <AdFreePass />
       <Disclaimer />
     </main>
   )

@@ -33,14 +33,20 @@ export function AdFreePass() {
     setShowFailed(result === 'failed')
   }
 
+  // 바로 위 "바코드 번호로 확인하기"(파란 weak 버튼)와 헷갈리지 않게, 설명이 있는 테두리 카드에 작은 회색 버튼으로 둔다
   if (active) {
     return (
-      <div className="adfree">
-        <Button display="full" variant="weak" size="large" disabled>
-          광고 없이 쓰는 중 · {formatRemaining(ads.adFreeUntil - now)} 남음
+      <section className="adfree" aria-label="광고 없이 쓰기">
+        <div className="adfree__text">
+          <strong className="adfree__title">광고 없이 쓰는 중</strong>
+          <p className="adfree__note">
+            {formatRemaining(ads.adFreeUntil - now)} 남았어요. 목록 속 광고는 그대로 보여요.
+          </p>
+        </div>
+        <Button className="adfree__action" size="medium" variant="weak" color="dark" disabled>
+          이용 중
         </Button>
-        <p className="adfree__note">사진으로 확인할 때 나오는 광고가 나오지 않아요. 목록 속 광고는 그대로 보여요.</p>
-      </div>
+      </section>
     )
   }
 
@@ -48,24 +54,28 @@ export function AdFreePass() {
 
   const ready = ads.reward === 'loaded'
   return (
-    <div className="adfree">
+    <section className="adfree" aria-label="광고 없이 쓰기">
+      <div className="adfree__text">
+        <strong className="adfree__title">24시간 광고 없이 쓰기</strong>
+        <p className="adfree__note" role={showFailed ? 'alert' : undefined}>
+          {showFailed
+            ? '광고를 보여주지 못했어요. 잠시 후 다시 시도해 주세요.'
+            : ready
+              ? '광고를 끝까지 보면 사진으로 확인할 때 나오는 광고가 24시간 동안 나오지 않아요.'
+              : '광고를 준비하고 있어요.'}
+        </p>
+      </div>
       <Button
-        display="full"
+        className="adfree__action"
+        size="medium"
         variant="weak"
-        size="large"
+        color="dark"
         disabled={!ready}
         loading={ads.rewardShowing}
         onClick={watch}
       >
-        광고 보고 24시간 광고 없이 쓰기
+        광고 보기
       </Button>
-      <p className="adfree__note" role={showFailed ? 'alert' : undefined}>
-        {showFailed
-          ? '광고를 보여주지 못했어요. 잠시 후 다시 시도해 주세요.'
-          : ready
-            ? '광고를 끝까지 보면 사진으로 확인할 때 나오는 광고가 24시간 동안 나오지 않아요.'
-            : '광고를 준비하고 있어요.'}
-      </p>
-    </div>
+    </section>
   )
 }
