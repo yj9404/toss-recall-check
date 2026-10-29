@@ -6,6 +6,7 @@ import type { BarcodeResult } from '../api/types'
 import { LoadFailedView } from '../components/ErrorView'
 import { ListSkeleton } from '../components/ListSkeleton'
 import { RecallCard } from '../components/RecallCard'
+import { showScanInterstitial } from '../lib/ads'
 import { BARCODE_LENGTH, isValidBarcode, sanitizeBarcode } from '../lib/barcode'
 import { logClick, logScreen } from '../lib/analytics'
 import { pickPhoto, type PhotoSource } from '../lib/barcodePhoto'
@@ -67,6 +68,9 @@ export function BarcodePage() {
     if (scanBusy) return
     logClick('barcode_scan_click', { source })
     setScan({ status: 'picking', source })
+    // 사진 스캔에만 전면광고를 붙인다(직접 입력에는 없음). 광고가 닫히거나 건너뛰면 바로 촬영·선택으로 넘어간다.
+    // false면 이미 다른 광고가 떠 있는 중복 호출이라 먼저 시작한 쪽에 맡긴다.
+    if (!(await showScanInterstitial())) return
     const photo = await pickPhoto(source)
     if (photo.status !== 'ok') {
       setScan({ status: photo.status === 'denied' ? 'denied' : 'idle' })

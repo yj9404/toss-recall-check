@@ -1,6 +1,7 @@
 import { Button, SearchField, Tab, Top } from '@toss/tds-mobile'
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AdFreePass } from '../components/AdFreePass'
 import { BannerAd } from '../components/BannerAd'
 import { Disclaimer } from '../components/Disclaimer'
 import { LoadFailedView } from '../components/ErrorView'
@@ -8,7 +9,7 @@ import { ListSkeleton } from '../components/ListSkeleton'
 import { RecallCard } from '../components/RecallCard'
 import { useCategories } from '../hooks/useCategories'
 import { useRecallList } from '../hooks/useRecallList'
-import { homeAdGroupId } from '../lib/ads'
+import { homeAdGroupId, preloadAds } from '../lib/ads'
 import { logClick, logScreen } from '../lib/analytics'
 import { OVERSEAS, orderCategories } from '../lib/categories'
 import { disarmUntypedButtons } from '../lib/forms'
@@ -46,6 +47,9 @@ export function HomePage() {
   )
 
   useEffect(() => logScreen('home_screen'), [])
+
+  // 바코드 사진 스캔 때 바로 띄울 수 있게 전면·리워드 광고를 미리 받아 둔다
+  useEffect(() => preloadAds(), [])
 
   // 키보드 검색(Enter)이 SearchField의 삭제 버튼이 아니라 "검색" 버튼으로 제출되게 한다
   useLayoutEffect(() => {
@@ -128,6 +132,8 @@ export function HomePage() {
           바코드 번호로 확인하기
         </Button>
       </div>
+
+      <AdFreePass />
 
       {tabs.length > 0 && (
         // fluid: 탭이 많으면 가로 스크롤되고, 선택한 탭이 화면 밖이면 TDS가 탭 줄만 스크롤해 보이게 한다

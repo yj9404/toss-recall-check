@@ -17,6 +17,15 @@ export function formatRegisteredAt(iso: string, now: Date = new Date()): string 
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`
 }
 
+/** 남은 시간을 "N시간 M분"으로. 1분 미만이 남아도 "1분"으로 올려 보여준다. */
+export function formatRemaining(ms: number): string {
+  const minutes = Math.max(1, Math.ceil(ms / 60_000))
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m}분`
+  return m === 0 ? `${h}시간` : `${h}시간 ${m}분`
+}
+
 const EMPTY_VALUES = new Set(['', '-', '데이터없음'])
 
 /** 값이 없거나 "-", "데이터없음"이면 화면에서 숨긴다 */

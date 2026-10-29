@@ -3,6 +3,7 @@
   --text-strong: #191f28;
   --text-sub: #6b7684;
   --line: #f2f4f6;
+  --border: #e5e8eb;
   --card: #f9fafb;
   --neutral-box: #f2f4f6;
   font-family: -apple-system, BlinkMacSystemFont, 'Toss Product Sans', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -208,6 +209,43 @@ body {
   margin: 8px 20px 0;
   color: var(--text-sub);
   font-size: 15px;
+}
+
+/* 광고 제거 이용권: 바코드 버튼(파란 weak)·리콜 카드(회색 배경)와 구분되게 흰 바탕 테두리 카드로 둔다 */
+.adfree {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 20px 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.adfree__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.adfree__title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.adfree__note {
+  margin: 2px 0 0;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 터치 타깃 44px */
+.adfree .adfree__action {
+  flex: none;
+  height: 44px;
 }
 
 .disclaimer {

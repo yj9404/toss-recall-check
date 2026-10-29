@@ -8,9 +8,9 @@
 ```
 src/
   api/        types.ts(응답 타입) · client.ts(fetch 호출은 여기 한 곳, 실패 시 ApiError에 상태 코드)
-  lib/        format(등록일·빈 값) · detail(상세 항목 순서) · categories(탭 순서) · homeCache(홈 복원) · barcode · pagination · ads(광고 ID) · analytics · anonymousKey
+  lib/        format(등록일·빈 값) · detail(상세 항목 순서) · categories(탭 순서) · homeCache(홈 복원) · barcode · pagination · adConfig(광고 ID·정책 상수) · ads(광고 로드·노출·쿨다운·이용권) · analytics · anonymousKey
   hooks/      useAsync · useRecallList(20건씩 이어 붙이기) · useTossBanner(광고 초기화 1회, 화면 이탈 시 destroy)
-  components/ RecallCard · DetailImages · BannerAd · ErrorView · ListSkeleton · Disclaimer
+  components/ RecallCard · DetailImages · BannerAd · AdFreePass · ErrorView · ListSkeleton · Disclaimer
   pages/      HomePage(/) · RecallDetailPage(/recall/:id) · BarcodePage(/barcode)
 ```
 
@@ -34,6 +34,8 @@ src/
 | `VITE_API_BASE_URL` | 백엔드 주소. 개발 서버에서 비우면 `http://localhost:8000` |
 | `VITE_ADS_MODE` | `test`(기본) 또는 `live`. `build:live`(mode=live)에서는 지정하지 않아도 `live` |
 | `VITE_AD_GROUP_HOME` | `live`일 때 쓰는 홈 배너의 실제 광고 그룹 ID. `.env.live`에 넣어요. 비어 있으면 배너를 그리지 않아요 |
+
+전면·리워드 광고의 실제 그룹 ID는 `src/lib/adConfig.ts`의 `LIVE_AD_GROUP_ID`(TODO)에 넣어요. 비어 있으면 `live` 빌드에서 그 광고만 빠지고 기능은 그대로 동작해요.
 
 운영 빌드의 `VITE_API_BASE_URL`은 `https://` 주소여야 해요(출시 체크리스트: API는 HTTPS만). `build`·`build:live`는 이 값이 비었거나 `https://`가 아니면 실패해요(빠진 채로 배포하면 API가 미니앱 호스트로 나가 403이 나요). 백엔드 CORS에도 미니앱 origin이 허용돼 있어야 해요.
 
@@ -92,4 +94,6 @@ npm run build:live   # 실제 광고 ID(.env.live)로 번들 생성 (검수 제�
 - 첫 화면에서 로그인·알림 동의·팝업을 띄우지 않아요. 외부 링크와 iframe은 쓰지 않고 출처는 기관명 텍스트로만 보여줘요.
 - 값이 비었거나 `-`, `데이터없음`이면 그 항목을 숨겨요. 이미지는 값이 있을 때만 그리고, 못 불러오면 그 이미지를 빼요(빈 영역·깨진 아이콘을 남기지 않아요).
 - 배너 광고: 홈 5번째 카드 뒤(5개 미만이면 목록 끝) 1곳만 둬요. 상세·바코드 화면에는 두지 않아요(비게임 출시 체크리스트: 배너는 스크롤 가능한 화면에만). `TossAds.initialize.isSupported()`가 false이거나 토스 앱 5.241.0 미만이면 영역 자체를 그리지 않아요.
+- 전면광고: 바코드 화면의 사진 스캔(카메라·앨범)을 누를 때만, 광고가 닫힌 뒤 촬영·선택으로 넘어가요. 직접 입력에는 없어요. 설치 후 처음 `FREE_FIRST_N`(2)번, 직전 전면광고 후 90초 안, 광고 제거 이용권 중에는 건너뛰어요. 미리 받아 둔 광고가 없거나 표시에 실패해도 기다리지 않고 바로 진행해요. 홈에 들어올 때와 광고가 닫힌 뒤 다음 광고를 미리 받아 둬요(전면 → 리워드 순으로 하나씩).
+- 광고 제거 이용권: 홈 하단 버튼으로 리워드 광고를 끝까지 보면(`userEarnedReward`) 24시간 동안 전면광고를 건너뛰어요. 배너는 그대로예요. 스캔 횟수와 만료 시각은 토스 앱 `Storage`에만 저장해요(서버 검증 없음).
 - 로그: 검색어 원문과 바코드 번호는 기록하지 않고 길이·결과 수·발견 여부만 기록해요. 식별키는 서버로 보내지 않아요.
